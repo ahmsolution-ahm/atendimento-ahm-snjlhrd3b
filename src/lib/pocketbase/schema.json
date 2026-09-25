@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-18T18:33:23.120Z",
+  "generatedAt": "2026-09-25T17:21:18.587Z",
   "collections": [
     {
       "name": "users",
@@ -29,14 +29,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -84,21 +89,36 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Aberto", "Em andamento", "Resolvido", "Fechado"]
+          "selectValues": [
+            "Aberto",
+            "Em andamento",
+            "Resolvido",
+            "Fechado"
+          ]
         },
         {
           "name": "prioridade",
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Baixa", "Média", "Alta", "Urgente"]
+          "selectValues": [
+            "Baixa",
+            "Média",
+            "Alta",
+            "Urgente"
+          ]
         },
         {
           "name": "canal",
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Email", "Telefone", "WhatsApp", "Chat"]
+          "selectValues": [
+            "Email",
+            "Telefone",
+            "WhatsApp",
+            "Chat"
+          ]
         },
         {
           "name": "responsavel",
@@ -119,14 +139,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -167,14 +192,23 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Ativo", "Aguardando resposta", "Encerrado"]
+          "selectValues": [
+            "Ativo",
+            "Aguardando resposta",
+            "Encerrado"
+          ]
         },
         {
           "name": "canal",
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Email", "Telefone", "WhatsApp", "Chat"]
+          "selectValues": [
+            "Email",
+            "Telefone",
+            "WhatsApp",
+            "Chat"
+          ]
         },
         {
           "name": "inicio_atendimento",
@@ -193,14 +227,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -244,17 +283,24 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE INDEX idx_comentarios_ticket ON comentarios (ticket)"]
+      "indexes": [
+        "CREATE INDEX idx_comentarios_ticket ON comentarios (ticket)"
+      ]
     },
     {
       "name": "logs_tickets",
@@ -298,17 +344,152 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE INDEX idx_logs_tickets_ticket ON logs_tickets (ticket)"]
+      "indexes": [
+        "CREATE INDEX idx_logs_tickets_ticket ON logs_tickets (ticket)"
+      ]
+    },
+    {
+      "name": "produtos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "familia",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo_venda",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Recorrente",
+            "Pontual"
+          ]
+        },
+        {
+          "name": "icp",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "dor",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "escopo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "perguntas",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "faq",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "timing",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "complexidade",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Baixa",
+            "Alta"
+          ]
+        },
+        {
+          "name": "especialista",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Ativo",
+            "Inativo"
+          ]
+        },
+        {
+          "name": "incompleto",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_produtos_status ON produtos (status)",
+        "CREATE INDEX idx_produtos_familia ON produtos (familia)",
+        "CREATE INDEX idx_produtos_especialista ON produtos (especialista)"
+      ]
     }
   ]
 }

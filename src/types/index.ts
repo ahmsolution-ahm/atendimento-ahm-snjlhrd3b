@@ -2,6 +2,9 @@ export type TicketStatus = 'Aberto' | 'Em andamento' | 'Resolvido' | 'Fechado'
 export type TicketPrioridade = 'Baixa' | 'Média' | 'Alta' | 'Urgente'
 export type CanalAtendimento = 'Email' | 'Telefone' | 'WhatsApp' | 'Chat'
 export type AtendimentoStatus = 'Ativo' | 'Aguardando resposta' | 'Encerrado'
+export type ProdutoStatus = 'Ativo' | 'Inativo'
+export type ProdutoTipoVenda = 'Recorrente' | 'Pontual'
+export type ProdutoComplexidade = 'Baixa' | 'Alta'
 
 import type { RecordModel } from 'pocketbase'
 
@@ -56,5 +59,24 @@ export interface LogTicketRecord extends RecordModel {
   detalhes?: string
   expand?: {
     usuario?: UserRecord
+  }
+}
+
+export interface ProdutoRecord extends RecordModel {
+  nome: string
+  familia?: string
+  tipo_venda: ProdutoTipoVenda
+  icp: string
+  dor: string
+  escopo: string
+  perguntas: string
+  faq?: string
+  timing?: string
+  complexidade: ProdutoComplexidade
+  especialista?: string
+  status: ProdutoStatus
+  incompleto?: boolean
+  expand?: {
+    especialista?: UserRecord
   }
 }
