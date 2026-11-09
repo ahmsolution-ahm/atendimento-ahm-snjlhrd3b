@@ -7,6 +7,7 @@ import {
   Ticket,
   Headphones,
   Users,
+  Package,
   LogOut,
   Menu,
   X,
@@ -142,6 +143,8 @@ export default function Layout() {
         return 'Atendimentos em Tempo Real'
       case '/equipe':
         return 'Equipe Comercial & Suporte'
+      case '/produtos':
+        return 'Catálogo de Produtos'
       default:
         return 'Atendimento AHM'
     }
@@ -151,6 +154,7 @@ export default function Layout() {
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Tickets', path: '/tickets', icon: Ticket },
     { name: 'Atendimentos', path: '/atendimentos', icon: Headphones },
+    { name: 'Produtos', path: '/produtos', icon: Package },
     { name: 'Equipe', path: '/equipe', icon: Users },
   ]
 

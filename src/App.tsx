@@ -19,6 +19,7 @@ import Dashboard from '@/pages/Dashboard'
 import Tickets from '@/pages/Tickets'
 import Atendimentos from '@/pages/Atendimentos'
 import Equipe from '@/pages/Equipe'
+import Produtos from '@/pages/Produtos'
 
 const App = () => (
   <BrowserRouter>
@@ -46,6 +47,7 @@ const App = () => (
             <Route path="/tickets" element={<Tickets />} />
             <Route path="/atendimentos" element={<Atendimentos />} />
             <Route path="/equipe" element={<Equipe />} />
+            <Route path="/produtos" element={<Produtos />} />
           </Route>
 
           {/* 404 e Redirecionamentos */}
