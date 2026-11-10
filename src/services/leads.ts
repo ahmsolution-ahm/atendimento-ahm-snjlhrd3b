@@ -59,8 +59,35 @@ export const leadsService = {
     )
   },
 
-  // F1-T06 RN-1.5: consultar duplicidade local por contato+empresa (case-insensitive).
-  // Retorna os leads existentes com a mesma chave — usado no formulário manual para avisar
+  // F1-T08: reprocessar a qualificação após edição do lead (o hook anexa o resultado anterior ao histórico)
+  async requalificar(
+    id: string,
+    resultado: { status: string; motivos: string[]; pendencias: string[] },
+    justificativa: string,
+    qualificadoPor?: string,
+  ): Promise<LeadRecord> {
+    return await this.gravarQualificacao(id, resultado, justificativa, qualificadoPor)
+  },
+
+  // F1-T08: rollback auditável — voltar para pendente exige motivo (SPEC 1.3)
+  async voltarPendente(id: string, motivo: string, usuario?: string): Promise<LeadRecord> {
+    const just = `rollback para pendente — motivo: ${motivo} (registrado por ${usuario || 'usuário'})`
+    return await pb.collection('leads').update<LeadRecord>(
+      id,
+      {
+        status: 'pendente',
+        qualificacao_resultado: just,
+        qualificacao_pendencias: [`rollback solicitado: ${motivo}`],
+        qualificado_em: '',
+        qualificado_por: '',
+      },
+      {
+        expand: 'produto_interesse,responsavel',
+      },
+    )
+  },
+
+  // F1-T06 RN-1.5: consultar duplicidade local por contato+empresa (case-insensitive).  // Retorna os leads existentes com a mesma chave — usado no formulário manual para avisar
   // ANTES de confirmar. Não bloqueia: o usuário decide (RN-1.5).
   async buscarDuplicidade(contato: string, empresa: string): Promise<LeadRecord[]> {
     const c = (contato || '').trim()
@@ -149,4 +176,5 @@ export interface LeadInput {
   qualificacao_pendencias?: string[]
   qualificado_em?: string
   qualificado_por?: string
+  qualificacao_historico?: string
 }

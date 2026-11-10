@@ -110,6 +110,7 @@ export interface LeadRecord extends RecordModel {
   qualificacao_pendencias?: string[]
   qualificado_em?: string
   qualificado_por?: string
+  qualificacao_historico?: string
   expand?: {
     produto_interesse?: ProdutoRecord
     responsavel?: UserRecord

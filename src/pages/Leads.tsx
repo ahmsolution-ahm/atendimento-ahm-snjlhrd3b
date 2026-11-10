@@ -125,6 +125,22 @@ export default function Leads() {
     resultado: ResultadoQualificacao
   } | null>(null)
   const [qualificando, setQualificando] = useState(false)
+
+  // F1-T08: editar lead + reprocessamento + rollback auditável
+  const [editLead, setEditLead] = useState<LeadRecord | null>(null)
+  const [editForm, setEditForm] = useState({
+    dor: '',
+    urgencia: 'Média' as LeadUrgencia,
+    produto_interesse: '',
+    observacoes: '',
+    empresa: '',
+    contato: '',
+  })
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [rollbackLead, setRollbackLead] = useState<LeadRecord | null>(null)
+  const [rollbackMotivo, setRollbackMotivo] = useState('')
+  const [savingRollback, setSavingRollback] = useState(false)
+  const [verHistorico, setVerHistorico] = useState(false)
   const [form, setForm] = useState({
     nome: '',
     empresa: '',
@@ -289,6 +305,85 @@ export default function Leads() {
     } finally {
       setQualificando(false)
       setQualificandoId(null)
+    }
+  }
+
+  // F1-T08: abrir modal de edição com os dados atuais do lead
+  const abrirEdicao = (lead: LeadRecord) => {
+    setEditLead(lead)
+    setEditForm({
+      dor: lead.dor || '',
+      urgencia: (lead.urgencia || 'Média') as LeadUrgencia,
+      produto_interesse: lead.produto_interesse || '',
+      observacoes: lead.observacoes || '',
+      empresa: lead.empresa || '',
+      contato: lead.contato || '',
+    })
+  }
+
+  // F1-T08: salvar edição e requalificar (o hook anexa o resultado anterior ao histórico)
+  const handleSalvarEdicao = async (requalificar: boolean) => {
+    if (!editLead) return
+    setSavingEdit(true)
+    try {
+      await leadsService.update(editLead.id, {
+        dor: editForm.dor || undefined,
+        urgencia: editForm.urgencia,
+        produto_interesse: editForm.produto_interesse || undefined,
+        observacoes: editForm.observacoes || undefined,
+        empresa: editForm.empresa,
+        contato: editForm.contato,
+      })
+      setEditLead(null)
+      if (requalificar) {
+        const atualizada = await leadsService.getById(editLead.id)
+        const produto = atualizada.expand?.produto_interesse
+          ? {
+              id: atualizada.expand.produto_interesse.id,
+              nome: atualizada.expand.produto_interesse.nome,
+              status: atualizada.expand.produto_interesse.status,
+              complexidade: atualizada.expand.produto_interesse.complexidade,
+              familia_tecnologica: atualizada.expand.produto_interesse.familia_tecnologica,
+            }
+          : null
+        const resultado = qualificar(atualizada, produto)
+        const just = justificativa(resultado)
+        await leadsService.requalificar(editLead.id, resultado, just, user?.id)
+        setResultadoQualificacao({ lead: atualizada, resultado })
+      }
+      loadData()
+    } catch (err) {
+      toast({
+        title: 'Erro ao salvar',
+        description: err instanceof Error ? err.message : 'Falha ao atualizar o lead.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSavingEdit(false)
+    }
+  }
+
+  // F1-T08: rollback auditável — volta para pendente com motivo obrigatório
+  const handleRollback = async () => {
+    if (!rollbackLead || !rollbackMotivo.trim()) return
+    setSavingRollback(true)
+    try {
+      await leadsService.voltarPendente(rollbackLead.id, rollbackMotivo.trim(), user?.email)
+      toast({
+        title: 'Lead devolvido para pendente',
+        description: 'O motivo foi registrado no histórico da qualificação.',
+      })
+      setRollbackLead(null)
+      setRollbackMotivo('')
+      loadData()
+    } catch (err) {
+      toast({
+        title: 'Erro no rollback',
+        description: err instanceof Error ? err.message : 'Falha ao devolver o lead.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSavingRollback(false)
     }
   }
 
@@ -530,7 +625,15 @@ export default function Leads() {
                   )}
                 </div>
               </div>
-              <div className="shrink-0">
+              <div className="shrink-0 flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => abrirEdicao(l)}
+                  className="px-3 py-2 rounded-xl text-[11px] font-semibold text-[#030507] bg-white border border-[#E5E7EB] shadow-sm hover:bg-[#FAF7F2] flex items-center gap-1.5"
+                  title="Editar dados que afetam a qualificação"
+                >
+                  Editar
+                </button>
                 <button
                   type="button"
                   onClick={() => handleQualificar(l)}
@@ -545,13 +648,193 @@ export default function Leads() {
                   )}
                   Qualificar
                 </button>
+                {l.status === 'qualificado' && (
+                  <button
+                    type="button"
+                    onClick={() => setRollbackLead(l)}
+                    className="px-3 py-2 rounded-xl text-[11px] font-semibold text-[#92400E] bg-amber-50 border border-amber-200 hover:bg-amber-100 flex items-center gap-1.5"
+                    title="Voltar para pendente com motivo (rollback auditável)"
+                  >
+                    Devolver
+                  </button>
+                )}
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Modal resultado da qualificação (F1-T07) */}
+      {/* Modal Editar Lead (F1-T08) */}
+      <Dialog open={!!editLead} onOpenChange={(open) => !open && setEditLead(null)}>
+        <DialogContent className="max-w-lg bg-white p-6 rounded-2xl modal-ahm max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-[#030507]">Editar Lead</DialogTitle>
+            <DialogDescription className="text-xs text-[#6B7280]">
+              {editLead?.nome} — corrija os dados e escolha se quer requalificar em seguida. O
+              resultado anterior fica no histórico.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[#030507] mb-1">
+                  Empresa
+                </label>
+                <input
+                  type="text"
+                  value={editForm.empresa}
+                  onChange={(e) => setEditForm({ ...editForm, empresa: e.target.value })}
+                  className="w-full px-3 py-2.5 rounded-xl border border-[#E5E7EB] text-xs text-[#030507] outline-none focus:border-[#DE6464]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[#030507] mb-1">
+                  Contato
+                </label>
+                <input
+                  type="text"
+                  value={editForm.contato}
+                  onChange={(e) => setEditForm({ ...editForm, contato: e.target.value })}
+                  className="w-full px-3 py-2.5 rounded-xl border border-[#E5E7EB] text-xs text-[#030507] outline-none focus:border-[#DE6464]"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-[#030507] mb-1">
+                Produto de interesse
+              </label>
+              <select
+                value={editForm.produto_interesse}
+                onChange={(e) => setEditForm({ ...editForm, produto_interesse: e.target.value })}
+                className="w-full px-3 py-2.5 rounded-xl border border-[#E5E7EB] text-xs text-[#030507] bg-white outline-none focus:border-[#DE6464]"
+              >
+                <option value="">— sem produto (lead fica pendente)</option>
+                {produtos.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-[#030507] mb-1">
+                Dor / Necessidade
+              </label>
+              <input
+                type="text"
+                value={editForm.dor}
+                onChange={(e) => setEditForm({ ...editForm, dor: e.target.value })}
+                placeholder="Ex.: Avarias em transporte de carga sensível"
+                className="w-full px-3 py-2.5 rounded-xl border border-[#E5E7EB] text-xs text-[#030507] outline-none focus:border-[#DE6464]"
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[#030507] mb-1">
+                  Urgência
+                </label>
+                <select
+                  value={editForm.urgencia}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, urgencia: e.target.value as LeadUrgencia })
+                  }
+                  className="w-full px-3 py-2.5 rounded-xl border border-[#E5E7EB] text-xs text-[#030507] bg-white outline-none focus:border-[#DE6464]"
+                >
+                  <option value="Baixa">Baixa</option>
+                  <option value="Média">Média</option>
+                  <option value="Alta">Alta</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[#030507] mb-1">
+                  Observações
+                </label>
+                <input
+                  type="text"
+                  value={editForm.observacoes}
+                  onChange={(e) => setEditForm({ ...editForm, observacoes: e.target.value })}
+                  className="w-full px-3 py-2.5 rounded-xl border border-[#E5E7EB] text-xs text-[#030507] outline-none focus:border-[#DE6464]"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-4">
+            <button
+              type="button"
+              onClick={() => setEditLead(null)}
+              className="px-4 py-2 rounded-xl text-xs font-medium text-[#6B7280]"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSalvarEdicao(false)}
+              disabled={savingEdit}
+              className="px-4 py-2 rounded-xl text-xs font-semibold text-[#030507] bg-white border border-[#E5E7EB] shadow-sm hover:bg-[#FAF7F2] disabled:opacity-50"
+            >
+              {savingEdit ? 'Salvando...' : 'Salvar'}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSalvarEdicao(true)}
+              disabled={savingEdit}
+              className="px-5 py-2 rounded-xl text-xs font-semibold text-white shadow-md disabled:opacity-50"
+              style={{ backgroundColor: '#DE6464' }}
+            >
+              {savingEdit ? 'Processando...' : 'Salvar e Requalificar'}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Rollback auditável (F1-T08) */}
+      <Dialog open={!!rollbackLead} onOpenChange={(open) => !open && setRollbackLead(null)}>
+        <DialogContent className="max-w-md bg-white p-6 rounded-2xl modal-ahm">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-[#030507]">
+              Devolver para pendente
+            </DialogTitle>
+            <DialogDescription className="text-xs text-[#6B7280]">
+              {rollbackLead?.nome} — {rollbackLead?.empresa}. O motivo é registrado no histórico da
+              qualificação (SPEC 1.3: rollback auditável).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-2">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-[#030507] mb-1">
+              Motivo (obrigatório)
+            </label>
+            <textarea
+              rows={3}
+              value={rollbackMotivo}
+              onChange={(e) => setRollbackMotivo(e.target.value)}
+              placeholder="Ex.: produto errado selecionado; cliente informou outra necessidade"
+              className="w-full px-3 py-2.5 rounded-xl border border-[#E5E7EB] text-xs text-[#030507] outline-none focus:border-[#DE6464]"
+            />
+          </div>
+          <div className="flex items-center justify-end gap-3 pt-4">
+            <button
+              type="button"
+              onClick={() => setRollbackLead(null)}
+              className="px-4 py-2 rounded-xl text-xs font-medium text-[#6B7280]"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleRollback}
+              disabled={savingRollback || !rollbackMotivo.trim()}
+              className="px-5 py-2 rounded-xl text-xs font-semibold text-white shadow-md disabled:opacity-50"
+              style={{ backgroundColor: '#DE6464' }}
+            >
+              {savingRollback ? 'Devolvendo...' : 'Devolver com motivo'}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal resultado da qualificação (F1-T07 + histórico F1-T08) */}
       <Dialog
         open={!!resultadoQualificacao}
         onOpenChange={(open) => !open && setResultadoQualificacao(null)}
@@ -604,6 +887,48 @@ export default function Leads() {
                 </ul>
               </>
             ) : null}
+
+            {/* F1-T08: histórico de reprocessamentos */}
+            {(() => {
+              let hist: { em: string; por: string; status: string; resultado: string }[] = []
+              try {
+                const raw = resultadoQualificacao?.lead.qualificacao_historico
+                if (raw) hist = JSON.parse(raw)
+              } catch (_) {
+                hist = []
+              }
+              if (hist.length === 0) return null
+              return (
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    onClick={() => setVerHistorico(!verHistorico)}
+                    className="text-[11px] font-semibold text-[#DE6464] flex items-center gap-1"
+                  >
+                    <Info className="w-3.5 h-3.5" />
+                    {verHistorico
+                      ? 'Ocultar histórico'
+                      : `Ver histórico (${hist.length} processamento${hist.length > 1 ? 's' : ''} anterior${hist.length > 1 ? 'es' : ''})`}
+                  </button>
+                  {verHistorico && (
+                    <ul className="mt-2 space-y-2 border-l-2 border-[#E5E7EB] pl-3">
+                      {hist.map((h, i) => (
+                        <li key={i} className="text-[11px]">
+                          <span className="font-semibold text-[#030507]">{h.status}</span>
+                          {h.em && (
+                            <span className="text-[#9CA3AF]">
+                              {' '}
+                              · {new Date(h.em).toLocaleString('pt-BR')}
+                            </span>
+                          )}
+                          <p className="text-[#6B7280] mt-0.5">{h.resultado}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )
+            })()}
           </div>
 
           <div className="flex items-center justify-end pt-4">
