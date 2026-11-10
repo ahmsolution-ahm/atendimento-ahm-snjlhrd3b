@@ -26,7 +26,7 @@ import {
   ClipboardCheck,
   Info,
 } from 'lucide-react'
-import { qualificar, justificar } from '@/lib/qualificacao'
+import { qualificar, justificativa } from '@/lib/qualificacao'
 import type { ResultadoQualificacao } from '@/lib/qualificacao'
 import {
   Dialog,
@@ -276,7 +276,7 @@ export default function Leads() {
           }
         : null
       const resultado = qualificar(lead, produto)
-      const just = justificar(resultado)
+      const just = justificativa(resultado)
       await leadsService.gravarQualificacao(lead.id, resultado, just, user?.id)
       setResultadoQualificacao({ lead, resultado })
       loadData()
