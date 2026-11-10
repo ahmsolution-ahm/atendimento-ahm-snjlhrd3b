@@ -326,11 +326,14 @@ export default function Leads() {
     if (!editLead) return
     setSavingEdit(true)
     try {
+      // IMPORTANTE: enviar string vazia explicitamente para LIMPAR campos (dor/produto)
+      // — 'undefined' no SDK do PocketBase não envia o campo e o valor antigo permanece
+      // (bug encontrado no teste humano: apagar a dor não surtia efeito)
       await leadsService.update(editLead.id, {
-        dor: editForm.dor || undefined,
+        dor: editForm.dor,
         urgencia: editForm.urgencia,
-        produto_interesse: editForm.produto_interesse || undefined,
-        observacoes: editForm.observacoes || undefined,
+        produto_interesse: editForm.produto_interesse,
+        observacoes: editForm.observacoes,
         empresa: editForm.empresa,
         contato: editForm.contato,
       })

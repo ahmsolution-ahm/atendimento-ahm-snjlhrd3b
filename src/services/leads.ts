@@ -32,8 +32,13 @@ export const leadsService = {
     })
   },
 
+  // F1-T08: update parcial — campos com string vazia LIMPAM o valor no PocketBase;
+  // campos undefined são omitidos (não alteram). O modal de edição depende disso.
   async update(id: string, data: Partial<LeadInput>): Promise<LeadRecord> {
-    return await pb.collection('leads').update<LeadRecord>(id, data, {
+    const payload: Record<string, unknown> = { ...data }
+    // remover chaves undefined para não sobrescrever com null inesperado
+    Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k])
+    return await pb.collection('leads').update<LeadRecord>(id, payload, {
       expand: 'produto_interesse,responsavel',
     })
   },
