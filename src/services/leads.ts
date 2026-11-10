@@ -38,6 +38,27 @@ export const leadsService = {
     })
   },
 
+  // F1-T06 RN-1.5: consultar duplicidade local por contato+empresa (case-insensitive).
+  // Retorna os leads existentes com a mesma chave — usado no formulário manual para avisar
+  // ANTES de confirmar. Não bloqueia: o usuário decide (RN-1.5).
+  async buscarDuplicidade(contato: string, empresa: string): Promise<LeadRecord[]> {
+    const c = (contato || '').trim()
+    const e = (empresa || '').trim()
+    if (!c || !e) return []
+    const filtro =
+      `((contato~'${c.replace(/'/g, "\\'")}' || contato~'${c.split('@')[0].replace(/'/g, "\\'")}') && ` +
+      `empresa~'${e.replace(/'/g, "\\'")}')`
+    try {
+      return await pb.collection('leads').getFullList<LeadRecord>({
+        filter: filtro,
+        sort: '-created',
+        expand: 'produto_interesse',
+      })
+    } catch (_) {
+      return []
+    }
+  },
+
   // F1-T05: importação em lote — cria as linhas válidas uma a uma e reporta falhas por linha.
   // RN-1.4: linha sem nome+empresa+contato vai como rascunho (incompleto=true); RN-1.6 aplica pendente via hook.
   async importarLote(

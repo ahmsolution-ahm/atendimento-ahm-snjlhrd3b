@@ -73,6 +73,36 @@ export default function Leads() {
   const [isNewModalOpen, setIsNewModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // F1-T06 RN-1.5: duplicidade local — aviso antes de confirmar
+  const [duplicidade, setDuplicidade] = useState<LeadRecord[] | null>(null)
+  const [checandoDuplicidade, setChecandoDuplicidade] = useState(false)
+  const [forcarCriacao, setForcarCriacao] = useState(false)
+  const dupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const checarDuplicidade = useCallback(async (contato: string, empresa: string) => {
+    if (!contato.trim() || !empresa.trim()) {
+      setDuplicidade(null)
+      setForcarCriacao(false)
+      return
+    }
+    setChecandoDuplicidade(true)
+    try {
+      const encontrados = await leadsService.buscarDuplicidade(contato, empresa)
+      setDuplicidade(encontrados.length > 0 ? encontrados : null)
+      setForcarCriacao(false)
+    } catch (_) {
+      setDuplicidade(null)
+    } finally {
+      setChecandoDuplicidade(false)
+    }
+  }, [])
+
+  // debounce: consulta só 600ms depois da última digitação em contato/empresa
+  const agendarChecagem = (contato: string, empresa: string) => {
+    if (dupTimerRef.current) clearTimeout(dupTimerRef.current)
+    dupTimerRef.current = setTimeout(() => checarDuplicidade(contato, empresa), 600)
+  }
+
   // F1-T05: Importação CSV
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [importPreview, setImportPreview] = useState<PreviaImportacao | null>(null)
@@ -221,6 +251,16 @@ export default function Leads() {
 
   const handleCreateLead = async (e: React.FormEvent) => {
     e.preventDefault()
+    // RN-1.5: se há duplicidade e o usuário ainda não confirmou, mostra o aviso (não cria)
+    if (duplicidade && !forcarCriacao) {
+      toast({
+        title: 'Possível duplicidade',
+        description:
+          'Revise o aviso no formulário. Para criar mesmo assim, clique em "Criar mesmo assim".',
+        variant: 'destructive',
+      })
+      return
+    }
     setIsSubmitting(true)
     try {
       await leadsService.create({
@@ -236,7 +276,7 @@ export default function Leads() {
         status: 'novo',
       })
       toast({
-        title: 'Lead criado!',
+        title: duplicidade ? 'Lead criado (duplicidade confirmada)!' : 'Lead criado!',
         description: `"${form.nome}" entrou na fila com status novo.`,
       })
       setIsNewModalOpen(false)
@@ -250,6 +290,8 @@ export default function Leads() {
         urgencia: 'Média',
         observacoes: '',
       })
+      setDuplicidade(null)
+      setForcarCriacao(false)
       loadData()
     } catch (err) {
       const msg =
@@ -616,7 +658,11 @@ export default function Leads() {
                   type="text"
                   required
                   value={form.empresa}
-                  onChange={(e) => setForm({ ...form, empresa: e.target.value })}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    setForm({ ...form, empresa: v })
+                    agendarChecagem(form.contato, v)
+                  }}
                   placeholder="Empresa do lead"
                   className="w-full px-3 py-2.5 rounded-xl border border-[#E5E7EB] text-xs text-[#030507] outline-none focus:border-[#DE6464]"
                 />
@@ -632,7 +678,11 @@ export default function Leads() {
                   type="text"
                   required
                   value={form.contato}
-                  onChange={(e) => setForm({ ...form, contato: e.target.value })}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    setForm({ ...form, contato: v })
+                    agendarChecagem(v, form.empresa)
+                  }}
                   placeholder="Telefone ou e-mail"
                   className="w-full px-3 py-2.5 rounded-xl border border-[#E5E7EB] text-xs text-[#030507] outline-none focus:border-[#DE6464]"
                 />
@@ -685,6 +735,38 @@ export default function Leads() {
               </div>
             </div>
 
+            {/* F1-T06 RN-1.5: aviso de duplicidade antes de confirmar */}
+            {checandoDuplicidade && (
+              <div className="p-3 rounded-xl bg-[#FAF7F2] border border-[#E5E7EB] text-[11px] text-[#6B7280] flex items-center gap-2">
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                Verificando duplicidades na base...
+              </div>
+            )}
+            {!checandoDuplicidade && duplicidade && (
+              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-[#92400E] flex items-start gap-2">
+                <Copy className="w-4 h-4 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <strong>Possível duplicidade:</strong> já existe(m) {duplicidade.length} lead(s)
+                  com este contato + empresa:
+                  <ul className="mt-1 space-y-0.5">
+                    {duplicidade.slice(0, 3).map((d) => (
+                      <li key={d.id} className="font-medium">
+                        • {d.nome || '(sem nome)'} — {d.empresa || '(sem empresa)'} ({d.status}
+                        {d.created
+                          ? `, criado em ${new Date(d.created).toLocaleDateString('pt-BR')}`
+                          : ''}
+                        )
+                      </li>
+                    ))}
+                  </ul>
+                  <span className="block mt-1">
+                    Revise se é o mesmo contato. Se for um caso diferente (ex.: outro contato na
+                    mesma empresa), você pode criar mesmo assim.
+                  </span>
+                </div>
+              </div>
+            )}
+
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-[#030507] mb-1">
                 Dor / Necessidade
@@ -719,14 +801,38 @@ export default function Leads() {
               >
                 Cancelar
               </button>
-              <button
-                type="submit"
-                disabled={isSubmitting || !form.nome || !form.empresa || !form.contato}
-                className="px-5 py-2 rounded-xl text-xs font-semibold text-white shadow-md disabled:opacity-50"
-                style={{ backgroundColor: '#DE6464' }}
-              >
-                {isSubmitting ? 'Criando lead...' : 'Criar Lead'}
-              </button>
+              {duplicidade && !forcarCriacao ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setForcarCriacao(true)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-[#92400E] bg-amber-50 border border-amber-200 hover:bg-amber-100"
+                  >
+                    Criar mesmo assim
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setForm({ ...form, nome: '', contato: '' })
+                      setDuplicidade(null)
+                      setForcarCriacao(false)
+                    }}
+                    className="px-5 py-2 rounded-xl text-xs font-semibold text-white shadow-md"
+                    style={{ backgroundColor: '#DE6464' }}
+                  >
+                    Corrigir dados
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={isSubmitting || !form.nome || !form.empresa || !form.contato}
+                  className="px-5 py-2 rounded-xl text-xs font-semibold text-white shadow-md disabled:opacity-50"
+                  style={{ backgroundColor: '#DE6464' }}
+                >
+                  {isSubmitting ? 'Criando lead...' : 'Criar Lead'}
+                </button>
+              )}
             </div>
           </form>
         </DialogContent>
