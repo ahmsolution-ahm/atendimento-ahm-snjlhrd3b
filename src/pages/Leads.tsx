@@ -293,7 +293,7 @@ export default function Leads() {
         : null
       const resultado = qualificar(lead, produto)
       const just = justificativa(resultado)
-      await leadsService.gravarQualificacao(lead.id, resultado, just, user?.id)
+      await leadsService.gravarQualificacao(lead.id, resultado, just, user?.id, lead)
       setResultadoQualificacao({ lead, resultado })
       loadData()
     } catch (err) {
@@ -348,7 +348,7 @@ export default function Leads() {
           : null
         const resultado = qualificar(atualizada, produto)
         const just = justificativa(resultado)
-        await leadsService.requalificar(editLead.id, resultado, just, user?.id)
+        await leadsService.gravarQualificacao(editLead.id, resultado, just, user?.id, atualizada)
         setResultadoQualificacao({ lead: atualizada, resultado })
       }
       loadData()
@@ -368,7 +368,12 @@ export default function Leads() {
     if (!rollbackLead || !rollbackMotivo.trim()) return
     setSavingRollback(true)
     try {
-      await leadsService.voltarPendente(rollbackLead.id, rollbackMotivo.trim(), user?.email)
+      await leadsService.voltarPendente(
+        rollbackLead.id,
+        rollbackMotivo.trim(),
+        user?.email,
+        rollbackLead,
+      )
       toast({
         title: 'Lead devolvido para pendente',
         description: 'O motivo foi registrado no histórico da qualificação.',

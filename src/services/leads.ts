@@ -38,13 +38,38 @@ export const leadsService = {
     })
   },
 
-  // F1-T07: gravar o resultado do motor de qualificação (status + justificativa + pendências)
+  // F1-T07/F1-T08: gravar o resultado do motor de qualificação com histórico de reprocessamento.
+  // O histórico é montado AQUI (frontend): lê o resultado anterior, anexa {em, por, status, resultado}
+  // e envia o array no PATCH — a API do PocketBase aceita array direto em campo json
+  // (o hook backend não consegue: r.set com array dá invalid_json, com string dá charcodes).
   async gravarQualificacao(
     id: string,
     resultado: { status: string; motivos: string[]; pendencias: string[] },
     justificativa: string,
     qualificadoPor?: string,
+    leadAtual?: LeadRecord,
   ): Promise<LeadRecord> {
+    // montar histórico: resultado anterior (se existir e for diferente) vai para o topo
+    let historico: { em: string; por: string; status: string; resultado: string }[] = []
+    const anterior = leadAtual?.qualificacao_historico
+    if (anterior) {
+      try {
+        const parsed = typeof anterior === 'string' ? JSON.parse(anterior) : anterior
+        if (Array.isArray(parsed)) historico = parsed
+      } catch (_) {
+        historico = []
+      }
+    }
+    const resultadoAnterior = leadAtual?.qualificacao_resultado || ''
+    if (resultadoAnterior && resultadoAnterior !== justificativa) {
+      historico.unshift({
+        em: leadAtual?.qualificado_em || leadAtual?.updated || '',
+        por: leadAtual?.qualificado_por || '',
+        status: leadAtual?.status || '',
+        resultado: resultadoAnterior,
+      })
+      if (historico.length > 20) historico = historico.slice(0, 20)
+    }
     return await pb.collection('leads').update<LeadRecord>(
       id,
       {
@@ -52,6 +77,8 @@ export const leadsService = {
         qualificacao_resultado: justificativa,
         qualificacao_pendencias: resultado.pendencias,
         qualificado_por: resultado.status === 'qualificado' ? qualificadoPor : undefined,
+        qualificado_em: resultado.status === 'qualificado' ? new Date().toISOString() : '',
+        qualificacao_historico: historico,
       },
       {
         expand: 'produto_interesse,responsavel',
@@ -59,19 +86,46 @@ export const leadsService = {
     )
   },
 
-  // F1-T08: reprocessar a qualificação após edição do lead (o hook anexa o resultado anterior ao histórico)
+  // F1-T08: reprocessar a qualificação após edição do lead (histórico montado em gravarQualificacao)
   async requalificar(
     id: string,
     resultado: { status: string; motivos: string[]; pendencias: string[] },
     justificativa: string,
     qualificadoPor?: string,
+    leadAtual?: LeadRecord,
   ): Promise<LeadRecord> {
-    return await this.gravarQualificacao(id, resultado, justificativa, qualificadoPor)
+    return await this.gravarQualificacao(id, resultado, justificativa, qualificadoPor, leadAtual)
   },
 
   // F1-T08: rollback auditável — voltar para pendente exige motivo (SPEC 1.3)
-  async voltarPendente(id: string, motivo: string, usuario?: string): Promise<LeadRecord> {
+  // O resultado anterior vai para o histórico (montado aqui, mesmo mecanismo da qualificação).
+  async voltarPendente(
+    id: string,
+    motivo: string,
+    usuario?: string,
+    leadAtual?: LeadRecord,
+  ): Promise<LeadRecord> {
     const just = `rollback para pendente — motivo: ${motivo} (registrado por ${usuario || 'usuário'})`
+    let historico: { em: string; por: string; status: string; resultado: string }[] = []
+    const anterior = leadAtual?.qualificacao_historico
+    if (anterior) {
+      try {
+        const parsed = typeof anterior === 'string' ? JSON.parse(anterior) : anterior
+        if (Array.isArray(parsed)) historico = parsed
+      } catch (_) {
+        historico = []
+      }
+    }
+    const resultadoAnterior = leadAtual?.qualificacao_resultado || ''
+    if (resultadoAnterior && resultadoAnterior !== just) {
+      historico.unshift({
+        em: leadAtual?.qualificado_em || leadAtual?.updated || '',
+        por: leadAtual?.qualificado_por || '',
+        status: leadAtual?.status || '',
+        resultado: resultadoAnterior,
+      })
+      if (historico.length > 20) historico = historico.slice(0, 20)
+    }
     return await pb.collection('leads').update<LeadRecord>(
       id,
       {
@@ -80,6 +134,7 @@ export const leadsService = {
         qualificacao_pendencias: [`rollback solicitado: ${motivo}`],
         qualificado_em: '',
         qualificado_por: '',
+        qualificacao_historico: historico,
       },
       {
         expand: 'produto_interesse,responsavel',
