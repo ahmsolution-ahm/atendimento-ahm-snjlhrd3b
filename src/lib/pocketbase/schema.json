@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-25T17:21:18.587Z",
+  "generatedAt": "2026-11-10T02:07:25.185Z",
   "collections": [
     {
       "name": "users",
@@ -29,14 +29,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -84,21 +89,36 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Aberto", "Em andamento", "Resolvido", "Fechado"]
+          "selectValues": [
+            "Aberto",
+            "Em andamento",
+            "Resolvido",
+            "Fechado"
+          ]
         },
         {
           "name": "prioridade",
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Baixa", "Média", "Alta", "Urgente"]
+          "selectValues": [
+            "Baixa",
+            "Média",
+            "Alta",
+            "Urgente"
+          ]
         },
         {
           "name": "canal",
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Email", "Telefone", "WhatsApp", "Chat"]
+          "selectValues": [
+            "Email",
+            "Telefone",
+            "WhatsApp",
+            "Chat"
+          ]
         },
         {
           "name": "responsavel",
@@ -119,14 +139,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -167,14 +192,23 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Ativo", "Aguardando resposta", "Encerrado"]
+          "selectValues": [
+            "Ativo",
+            "Aguardando resposta",
+            "Encerrado"
+          ]
         },
         {
           "name": "canal",
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Email", "Telefone", "WhatsApp", "Chat"]
+          "selectValues": [
+            "Email",
+            "Telefone",
+            "WhatsApp",
+            "Chat"
+          ]
         },
         {
           "name": "inicio_atendimento",
@@ -193,14 +227,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -244,17 +283,24 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE INDEX idx_comentarios_ticket ON comentarios (ticket)"]
+      "indexes": [
+        "CREATE INDEX idx_comentarios_ticket ON comentarios (ticket)"
+      ]
     },
     {
       "name": "logs_tickets",
@@ -298,17 +344,24 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE INDEX idx_logs_tickets_ticket ON logs_tickets (ticket)"]
+      "indexes": [
+        "CREATE INDEX idx_logs_tickets_ticket ON logs_tickets (ticket)"
+      ]
     },
     {
       "name": "produtos",
@@ -338,7 +391,10 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Recorrente", "Pontual"]
+          "selectValues": [
+            "Recorrente",
+            "Pontual"
+          ]
         },
         {
           "name": "icp",
@@ -381,7 +437,10 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Baixa", "Alta"]
+          "selectValues": [
+            "Baixa",
+            "Alta"
+          ]
         },
         {
           "name": "especialista",
@@ -395,7 +454,10 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Ativo", "Inativo"]
+          "selectValues": [
+            "Ativo",
+            "Inativo"
+          ]
         },
         {
           "name": "incompleto",
@@ -408,20 +470,222 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        },
+        {
+          "name": "familia_tecnologica",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "templates_diagnostico"
+        },
+        {
+          "name": "modelo_negocio",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "modelos_negocio"
         }
       ],
       "indexes": [
         "CREATE INDEX idx_produtos_status ON produtos (status)",
         "CREATE INDEX idx_produtos_familia ON produtos (familia)",
         "CREATE INDEX idx_produtos_especialista ON produtos (especialista)"
+      ]
+    },
+    {
+      "name": "modelos_negocio",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "ciclo_dias_min",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "ciclo_dias_max",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "condicoes_pagamento",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "canal",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "fornecedores",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "previsibilidade",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "complexidade_tipica",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Baixa",
+            "Alta"
+          ]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_modelos_nome ON modelos_negocio (nome)"
+      ]
+    },
+    {
+      "name": "templates_diagnostico",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "familia",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "tecnico",
+            "cenario",
+            "auditoria",
+            "checklist_triagem",
+            "qualificacao_consultiva"
+          ]
+        },
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "produtos_cobertos",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "perguntas_json",
+          "type": "json",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "blocos_comuns",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fonte",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_templates_familia ON templates_diagnostico (familia)"
       ]
     }
   ]

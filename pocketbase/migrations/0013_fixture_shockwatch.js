@@ -1,10 +1,14 @@
 // EMENDA 1.1a — F1-T03: fixture do produto exemplo (Shockwatch completo).
-// Idempotente: atualiza o Shockwatch existente (id 3hkwgsarc7u0uuu) com especialista, timing, FAQ,
-// família tecnológica (template impacto/tombamento) e modelo de negócio (cíclico).
+// Idempotente e tolerante a base vazia: se o Shockwatch não existir (base nova), não faz nada.
 // RN-1.2: especialista vinculado (usuário admin seed como "Especialista Produto" de demonstração).
 migrate(
   (app) => {
-    const produto = app.findRecordById('produtos', '3hkwgsarc7u0uuu')
+    let produto
+    try {
+      produto = app.findRecordById('produtos', '3hkwgsarc7u0uuu')
+    } catch (_) {
+      return // base nova sem o produto exemplo — fixture não se aplica
+    }
     const templates = app.findRecordsByFilter(
       'templates_diagnostico',
       "familia = 'Impacto/tombamento descartável' && tipo = 'tecnico'",
