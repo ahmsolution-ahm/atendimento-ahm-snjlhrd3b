@@ -76,7 +76,38 @@ export interface ProdutoRecord extends RecordModel {
   especialista?: string
   status: ProdutoStatus
   incompleto?: boolean
+  familia_tecnologica?: string
+  modelo_negocio?: string
   expand?: {
     especialista?: UserRecord
+    familia_tecnologica?: TemplateDiagnosticoRecord
+    modelo_negocio?: ModeloNegocioRecord
+  }
+}
+
+export type LeadStatus =
+  | 'novo'
+  | 'em qualificação'
+  | 'qualificado'
+  | 'pendente'
+  | 'fora do recorte'
+  | 'transbordo'
+export type LeadUrgencia = 'Baixa' | 'Média' | 'Alta'
+
+export interface LeadRecord extends RecordModel {
+  nome: string
+  empresa: string
+  contato: string
+  origem?: string
+  produto_interesse?: string
+  dor?: string
+  urgencia?: LeadUrgencia
+  observacoes?: string
+  responsavel?: string
+  status: LeadStatus
+  incompleto?: boolean
+  expand?: {
+    produto_interesse?: ProdutoRecord
+    responsavel?: UserRecord
   }
 }

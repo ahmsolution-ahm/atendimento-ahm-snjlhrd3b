@@ -8,6 +8,7 @@ import {
   Headphones,
   Users,
   Package,
+  UserPlus,
   LogOut,
   Menu,
   X,
@@ -145,6 +146,8 @@ export default function Layout() {
         return 'Equipe Comercial & Suporte'
       case '/produtos':
         return 'Catálogo de Produtos'
+      case '/leads':
+        return 'Gestão de Leads'
       default:
         return 'Atendimento AHM'
     }
@@ -155,6 +158,7 @@ export default function Layout() {
     { name: 'Tickets', path: '/tickets', icon: Ticket },
     { name: 'Atendimentos', path: '/atendimentos', icon: Headphones },
     { name: 'Produtos', path: '/produtos', icon: Package },
+    { name: 'Leads', path: '/leads', icon: UserPlus },
     { name: 'Equipe', path: '/equipe', icon: Users },
   ]
 
