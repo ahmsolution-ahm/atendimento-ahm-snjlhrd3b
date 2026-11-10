@@ -12,8 +12,10 @@ onRecordUpdate((e) => {
   if (resultadoAnterior !== '' && novoResultado !== resultadoAnterior) {
     let historico = []
     try {
-      const raw = r.getString('qualificacao_historico')
-      if (raw) historico = JSON.parse(raw)
+      // campo json do PocketBase: pode chegar como array/objeto (via API) ou string (via set)
+      const raw = r.get('qualificacao_historico')
+      if (Array.isArray(raw)) historico = raw
+      else if (typeof raw === 'string' && raw) historico = JSON.parse(raw)
     } catch (_) {
       historico = []
     }
@@ -25,7 +27,8 @@ onRecordUpdate((e) => {
     }
     historico.unshift(entrada)
     if (historico.length > 20) historico = historico.slice(0, 20)
-    r.set('qualificacao_historico', JSON.stringify(historico))
+    // campo json espera OBJETO/ARRAY direto — não string JSON (lição F1-T08)
+    r.set('qualificacao_historico', historico)
   }
   e.next()
 }, 'leads')
