@@ -1,10 +1,29 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { leadsService } from '@/services/leads'
 import { produtosService } from '@/services/produtos'
 import { useAuth } from '@/contexts/AuthContext'
 import type { LeadRecord, LeadStatus, LeadUrgencia, ProdutoRecord } from '@/types'
+import type { CsvLeadRow, LinhaInvalida, PreviaImportacao } from '@/lib/csvImport'
+import {
+  parseCsvFile,
+  mapearCabecalhos,
+  validarLinhas,
+  detectarDuplicadasNoArquivo,
+} from '@/lib/csvImport'
 import { useToast } from '@/hooks/use-toast'
-import { Users, UserPlus, RefreshCw, Search, Inbox, AlertCircle, Sparkles } from 'lucide-react'
+import {
+  Users,
+  UserPlus,
+  RefreshCw,
+  Search,
+  Inbox,
+  AlertCircle,
+  Sparkles,
+  FileUp,
+  CheckCircle2,
+  XCircle,
+  Copy,
+} from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -53,6 +72,17 @@ export default function Leads() {
   // Modal Novo Lead
   const [isNewModalOpen, setIsNewModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // F1-T05: Importação CSV
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [importPreview, setImportPreview] = useState<PreviaImportacao | null>(null)
+  const [importFileName, setImportFileName] = useState('')
+  const [importing, setImporting] = useState(false)
+  const [importProgress, setImportProgress] = useState({ done: 0, total: 0 })
+  const [importResult, setImportResult] = useState<{
+    criados: number
+    falhas: LinhaInvalida[]
+  } | null>(null)
   const [form, setForm] = useState({
     nome: '',
     empresa: '',
@@ -96,6 +126,98 @@ export default function Leads() {
 
   const novosCount = leads.filter((l) => l.status === 'novo').length
   const pendentesCount = leads.filter((l) => l.status === 'pendente').length
+
+  // F1-T05: analisar arquivo e montar prévia (nada é gravado ainda)
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImportResult(null)
+    try {
+      const buffer = await file.arrayBuffer()
+      const { cabecalhos, rows } = parseCsvFile(buffer)
+      const mapa = mapearCabecalhos(cabecalhos)
+      const camposMapeados = mapa.filter(Boolean).length
+      if (camposMapeados === 0) {
+        toast({
+          title: 'Cabeçalhos não reconhecidos',
+          description:
+            'O arquivo precisa ter colunas reconhecíveis como Nome, Empresa e Contato/Email. Verifique a primeira linha.',
+          variant: 'destructive',
+        })
+        return
+      }
+      const temContato = mapa.includes('contato')
+      if (!temContato) {
+        toast({
+          title: 'Coluna de contato ausente',
+          description:
+            'Não encontrei uma coluna de e-mail/contato no arquivo. Adicione a coluna e tente novamente.',
+          variant: 'destructive',
+        })
+        return
+      }
+      const { validas, invalidas } = validarLinhas(rows, mapa)
+      const duplicadasNoArquivo = detectarDuplicadasNoArquivo(validas)
+      // duplicidades na base: compara contato+empresa dos leads existentes
+      const chavesBase = new Set(
+        leads.map((l) => `${(l.contato || '').toLowerCase()}|${(l.empresa || '').toLowerCase()}`),
+      )
+      const duplicadasNaBase = validas.filter((l) =>
+        chavesBase.has(`${l.contato.toLowerCase()}|${l.empresa.toLowerCase()}`),
+      )
+      setImportFileName(file.name)
+      setImportPreview({
+        total: rows.length,
+        validas,
+        invalidas,
+        duplicadasNoArquivo,
+        duplicadasNaBase,
+        cabecalhos,
+      })
+    } catch (err) {
+      toast({
+        title: 'Arquivo ilegível',
+        description:
+          err instanceof Error
+            ? err.message
+            : 'Não foi possível ler o arquivo. Verifique o formato (CSV ou TSV).',
+        variant: 'destructive',
+      })
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  // F1-T05: confirmar importação — grava só as válidas
+  const handleConfirmImport = async () => {
+    if (!importPreview) return
+    setImporting(true)
+    setImportProgress({ done: 0, total: importPreview.validas.length })
+    try {
+      const produtoPorNome = new Map(produtos.map((p) => [p.nome.toLowerCase(), p.id]))
+      const result = await leadsService.importarLote(
+        importPreview.validas,
+        produtoPorNome,
+        user?.id,
+        (done, total) => setImportProgress({ done, total }),
+      )
+      setImportResult(result)
+      setImportPreview(null)
+      loadData()
+      toast({
+        title: 'Importação concluída',
+        description: `${result.criados} leads criados${result.falhas.length ? `, ${result.falhas.length} falharam` : ''}.`,
+      })
+    } catch (err) {
+      toast({
+        title: 'Erro na importação',
+        description: err instanceof Error ? err.message : 'Falha ao gravar os leads.',
+        variant: 'destructive',
+      })
+    } finally {
+      setImporting(false)
+    }
+  }
 
   const handleCreateLead = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -158,15 +280,32 @@ export default function Leads() {
             Leads cadastrados manualmente entram na fila com status novo para qualificação
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setIsNewModalOpen(true)}
-          className="px-4 py-2.5 rounded-xl text-xs font-semibold text-white shadow-md transition-all hover:bg-[#C94F4F] flex items-center gap-2 self-start sm:self-auto"
-          style={{ backgroundColor: '#DE6464' }}
-        >
-          <UserPlus className="w-4 h-4" />
-          <span>Novo Lead</span>
-        </button>
+        <div className="flex gap-2 self-start sm:self-auto">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,.tsv,.txt"
+            onChange={handleFileSelected}
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="px-4 py-2.5 rounded-xl text-xs font-semibold text-[#030507] bg-white border border-[#E5E7EB] shadow-sm transition-all hover:bg-[#FAF7F2] flex items-center gap-2"
+          >
+            <FileUp className="w-4 h-4" />
+            <span>Importar CSV</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsNewModalOpen(true)}
+            className="px-4 py-2.5 rounded-xl text-xs font-semibold text-white shadow-md transition-all hover:bg-[#C94F4F] flex items-center gap-2"
+            style={{ backgroundColor: '#DE6464' }}
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Novo Lead</span>
+          </button>
+        </div>
       </div>
 
       {/* Cards Resumo */}
@@ -304,6 +443,141 @@ export default function Leads() {
           ))}
         </div>
       )}
+
+      {/* Modal Importação CSV — prévia (F1-T05) */}
+      <Dialog open={!!importPreview} onOpenChange={(open) => !open && setImportPreview(null)}>
+        <DialogContent className="max-w-2xl bg-white p-6 rounded-2xl modal-ahm max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-2">
+              <FileUp className="w-5 h-5" />
+            </div>
+            <DialogTitle className="text-lg font-bold text-[#030507]">
+              Prévia da importação — {importFileName}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-[#6B7280]">
+              Nada foi gravado ainda. Confirme abaixo para criar os leads válidos.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+            <div className="p-3 rounded-xl bg-[#FAF7F2] border border-[#E5E7EB] text-center">
+              <div className="text-lg font-extrabold text-[#030507]">{importPreview?.total}</div>
+              <div className="text-[10px] uppercase tracking-wider text-[#6B7280] font-semibold">
+                Linhas lidas
+              </div>
+            </div>
+            <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-center">
+              <div className="text-lg font-extrabold text-[#059669]">
+                {importPreview?.validas.length}
+              </div>
+              <div className="text-[10px] uppercase tracking-wider text-[#059669] font-semibold">
+                Válidas
+              </div>
+            </div>
+            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-center">
+              <div className="text-lg font-extrabold text-[#DC2626]">
+                {importPreview?.invalidas.length}
+              </div>
+              <div className="text-[10px] uppercase tracking-wider text-[#DC2626] font-semibold">
+                Inválidas
+              </div>
+            </div>
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-center">
+              <div className="text-lg font-extrabold text-[#D97706]">
+                {(importPreview?.duplicadasNoArquivo.length || 0) +
+                  (importPreview?.duplicadasNaBase.length || 0)}
+              </div>
+              <div className="text-[10px] uppercase tracking-wider text-[#D97706] font-semibold">
+                Duplicadas
+              </div>
+            </div>
+          </div>
+
+          {importPreview && importPreview.invalidas.length > 0 && (
+            <div className="mt-4">
+              <h4 className="text-xs font-bold text-[#030507] mb-2 flex items-center gap-1.5">
+                <XCircle className="w-3.5 h-3.5 text-[#DC2626]" /> Linhas inválidas (
+                {importPreview.invalidas.length})
+              </h4>
+              <div className="max-h-40 overflow-y-auto rounded-xl border border-[#E5E7EB]">
+                <table className="w-full text-[11px]">
+                  <thead className="bg-[#FAF7F2] sticky top-0">
+                    <tr>
+                      <th className="text-left px-3 py-2 font-semibold text-[#6B7280]">Linha</th>
+                      <th className="text-left px-3 py-2 font-semibold text-[#6B7280]">Motivo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {importPreview.invalidas.slice(0, 100).map((l) => (
+                      <tr key={l.linha} className="border-t border-[#E5E7EB]">
+                        <td className="px-3 py-1.5 text-[#6B7280]">{l.linha}</td>
+                        <td className="px-3 py-1.5 text-[#030507]">{l.motivo}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {importPreview.invalidas.length > 100 && (
+                <p className="text-[10px] text-[#9CA3AF] mt-1">
+                  Mostrando as primeiras 100 de {importPreview.invalidas.length}.
+                </p>
+              )}
+            </div>
+          )}
+
+          {importPreview &&
+            (importPreview.duplicadasNoArquivo.length > 0 ||
+              importPreview.duplicadasNaBase.length > 0) && (
+              <div className="mt-3 p-3 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-[#92400E] flex items-start gap-2">
+                <Copy className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                <div>
+                  <strong>Possíveis duplicidades:</strong>{' '}
+                  {importPreview.duplicadasNaBase.length > 0 &&
+                    `${importPreview.duplicadasNaBase.length} já existem na base (mesmo contato+empresa)`}
+                  {importPreview.duplicadasNaBase.length > 0 &&
+                    importPreview.duplicadasNoArquivo.length > 0 &&
+                    ' · '}
+                  {importPreview.duplicadasNoArquivo.length > 0 &&
+                    `${importPreview.duplicadasNoArquivo.length} repetidas dentro do próprio arquivo`}
+                  . Elas serão criadas mesmo assim — revise a lista se necessário.
+                </div>
+              </div>
+            )}
+
+          {importPreview &&
+            importPreview.validas.some((l) => !(l.nome && l.empresa && l.contato)) && (
+              <div className="mt-3 p-3 rounded-xl bg-blue-50 border border-blue-200 text-[11px] text-[#1E40AF] flex items-start gap-2">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                <div>
+                  <strong>Leads parciais:</strong> linhas sem nome, empresa ou contato completos
+                  entram como <strong>rascunho (pendente)</strong> — você pode completá-las depois
+                  na tela de leads.
+                </div>
+              </div>
+            )}
+
+          <div className="flex items-center justify-end gap-3 pt-4">
+            <button
+              type="button"
+              onClick={() => setImportPreview(null)}
+              className="px-4 py-2 rounded-xl text-xs font-medium text-[#6B7280]"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmImport}
+              disabled={importing || !importPreview || importPreview.validas.length === 0}
+              className="px-5 py-2 rounded-xl text-xs font-semibold text-white shadow-md disabled:opacity-50"
+              style={{ backgroundColor: '#DE6464' }}
+            >
+              {importing
+                ? `Importando... ${importProgress.done}/${importProgress.total}`
+                : `Confirmar importação (${importPreview?.validas.length || 0} leads)`}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal Novo Lead */}
       <Dialog open={isNewModalOpen} onOpenChange={setIsNewModalOpen}>
