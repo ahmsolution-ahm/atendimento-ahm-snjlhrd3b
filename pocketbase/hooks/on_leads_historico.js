@@ -27,7 +27,8 @@ onRecordUpdate((e) => {
     }
     historico.unshift(entrada)
     if (historico.length > 20) historico = historico.slice(0, 20)
-    // campo json espera OBJETO/ARRAY direto — não string JSON (lição F1-T08)
+    // r.set em campo json: o PocketBase serializa objeto JS automaticamente aqui;
+    // via API o campo aceita array/objeto direto, no hook o set aceita o array JS puro.
     r.set('qualificacao_historico', historico)
   }
   e.next()
