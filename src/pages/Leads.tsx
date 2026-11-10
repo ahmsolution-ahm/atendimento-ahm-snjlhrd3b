@@ -597,7 +597,7 @@ export default function Leads() {
         <div className="flex items-center justify-center py-16">
           <RefreshCw className="w-6 h-6 text-[#DE6464] animate-spin" />
         </div>
-      ) : filtered.length === 0 ? (
+      ) : leads.length === 0 ? (
         <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm p-12 flex flex-col items-center text-center">
           <div className="w-14 h-14 rounded-2xl bg-[#FAF7F2] text-[#9CA3AF] flex items-center justify-center mb-4">
             <Inbox className="w-7 h-7" strokeWidth={1.5} />
