@@ -11,7 +11,46 @@ export interface ImportPreview {
   cabecalhos: string[]
 }
 
+export interface LeadsPaginados {
+  itens: LeadRecord[]
+  total: number
+  totalPaginas: number
+  pagina: number
+  porPagina: number
+}
+
 export const leadsService = {
+  // F1-T09/desempenho: listagem PAGINADA server-side (a tela não carrega mais os 15k de uma vez)
+  async listPaginado(
+    pagina: number = 1,
+    porPagina: number = 20,
+    filter?: string,
+    sort: string = '-created',
+  ): Promise<LeadsPaginados> {
+    const r = await pb.collection('leads').getList<LeadRecord>(pagina, porPagina, {
+      filter,
+      sort,
+      expand: 'produto_interesse,responsavel',
+    })
+    return {
+      itens: r.items,
+      total: r.totalItems,
+      totalPaginas: r.totalPages,
+      pagina: r.page,
+      porPagina: r.perPage,
+    }
+  },
+
+  // F1-T09/desempenho: contadores agregados (3 requisições leves em vez de carregar tudo)
+  async contadores(): Promise<{ total: number; novos: number; pendentes: number }> {
+    const [total, novos, pendentes] = await Promise.all([
+      pb.collection('leads').getList(1, 1, {}),
+      pb.collection('leads').getList(1, 1, { filter: "status='novo'" }),
+      pb.collection('leads').getList(1, 1, { filter: "status='pendente'" }),
+    ])
+    return { total: total.totalItems, novos: novos.totalItems, pendentes: pendentes.totalItems }
+  },
+
   async list(filter?: string, sort: string = '-created'): Promise<LeadRecord[]> {
     return await pb.collection('leads').getFullList<LeadRecord>({
       filter,

@@ -71,7 +71,14 @@ export default function Leads() {
   const [produtos, setProdutos] = useState<ProdutoRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [searchAplicada, setSearchAplicada] = useState('')
   const [statusFilter, setStatusFilter] = useState<'Todos' | LeadStatus>('Todos')
+  // F1-T09/desempenho: paginação server-side
+  const [pagina, setPagina] = useState(1)
+  const [totalPaginas, setTotalPaginas] = useState(1)
+  const [totalLeads, setTotalLeads] = useState(0)
+  const [contadores, setContadores] = useState({ total: 0, novos: 0, pendentes: 0 })
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Modal Novo Lead
   const [isNewModalOpen, setIsNewModalOpen] = useState(false)
@@ -152,11 +159,26 @@ export default function Leads() {
     observacoes: '',
   })
 
+  // F1-T09/desempenho: carrega UMA página do servidor (20 leads, 1 requisição) + contadores agregados
   const loadData = useCallback(async () => {
     try {
-      const [lList, pList] = await Promise.all([leadsService.list(), produtosService.listAtivos()])
-      setLeads(lList)
+      const filtros: string[] = []
+      if (statusFilter !== 'Todos') filtros.push(`status='${statusFilter}'`)
+      if (searchAplicada.trim()) {
+        const t = searchAplicada.trim().replace(/'/g, "\\'")
+        filtros.push(`(nome~'${t}' || empresa~'${t}' || contato~'${t}')`)
+      }
+      const filtro = filtros.length > 0 ? filtros.join(' && ') : undefined
+      const [lPage, pList, conts] = await Promise.all([
+        leadsService.listPaginado(pagina, 20, filtro),
+        produtosService.listAtivos(),
+        leadsService.contadores(),
+      ])
+      setLeads(lPage.itens)
+      setTotalPaginas(lPage.totalPaginas)
+      setTotalLeads(lPage.total)
       setProdutos(pList)
+      setContadores(conts)
     } catch (_) {
       toast({
         title: 'Erro ao carregar leads',
@@ -166,24 +188,29 @@ export default function Leads() {
     } finally {
       setLoading(false)
     }
-  }, [toast])
+  }, [toast, pagina, statusFilter, searchAplicada])
 
   useEffect(() => {
     loadData()
   }, [loadData])
 
-  const filtered = useMemo(() => {
-    return leads.filter((l) => {
-      const matchStatus = statusFilter === 'Todos' || l.status === statusFilter
-      const term = search.trim().toLowerCase()
-      const matchSearch =
-        !term || l.nome.toLowerCase().includes(term) || l.empresa.toLowerCase().includes(term)
-      return matchStatus && matchSearch
-    })
-  }, [leads, statusFilter, search])
+  // busca server-side com debounce (600ms após parar de digitar)
+  const onSearchChange = (v: string) => {
+    setSearch(v)
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    searchTimerRef.current = setTimeout(() => {
+      setSearchAplicada(v)
+      setPagina(1)
+    }, 600)
+  }
 
-  const novosCount = leads.filter((l) => l.status === 'novo').length
-  const pendentesCount = leads.filter((l) => l.status === 'pendente').length
+  const mudarStatus = (f: 'Todos' | LeadStatus) => {
+    setStatusFilter(f)
+    setPagina(1)
+  }
+
+  const novosCount = contadores.novos
+  const pendentesCount = contadores.pendentes
 
   // F1-T05: analisar arquivo e montar prévia (nada é gravado ainda)
   const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -542,8 +569,8 @@ export default function Leads() {
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nome ou empresa..."
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="Buscar por nome, empresa ou contato..."
             className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-[#E5E7EB] text-xs text-[#030507] bg-white outline-none focus:border-[#DE6464]"
           />
         </div>
@@ -552,7 +579,7 @@ export default function Leads() {
             <button
               key={f}
               type="button"
-              onClick={() => setStatusFilter(f)}
+              onClick={() => mudarStatus(f)}
               className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all ${
                 statusFilter === f
                   ? 'bg-[#030507] text-white border-[#030507] shadow-sm'
@@ -586,7 +613,7 @@ export default function Leads() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map((l) => (
+          {leads.map((l) => (
             <div
               key={l.id}
               className="bg-white p-5 rounded-2xl border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row md:items-center justify-between gap-4"
@@ -634,6 +661,7 @@ export default function Leads() {
                 </div>
               </div>
               <div className="shrink-0 flex gap-1.5">
+                {/* ações por lead — a lista é paginada; após ação, loadData() recarrega só a página atual */}
                 <button
                   type="button"
                   onClick={() => abrirEdicao(l)}
@@ -669,6 +697,56 @@ export default function Leads() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Paginação server-side (F1-T09/desempenho) */}
+      {!loading && totalPaginas > 1 && (
+        <div className="flex items-center justify-between bg-white px-5 py-3 rounded-2xl border border-[#E5E7EB] shadow-sm">
+          <span className="text-[11px] text-[#6B7280]">
+            {totalLeads.toLocaleString('pt-BR')} leads · página {pagina} de{' '}
+            {totalPaginas.toLocaleString('pt-BR')}
+          </span>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setPagina(1)}
+              disabled={pagina === 1}
+              className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border border-[#E5E7EB] disabled:opacity-40 hover:bg-[#FAF7F2]"
+            >
+              «
+            </button>
+            <button
+              type="button"
+              onClick={() => setPagina((p) => Math.max(1, p - 1))}
+              disabled={pagina === 1}
+              className="px-3 py-1.5 rounded-lg text-[11px] font-semibold border border-[#E5E7EB] disabled:opacity-40 hover:bg-[#FAF7F2]"
+            >
+              Anterior
+            </button>
+            <span
+              className="px-3 py-1.5 rounded-lg text-[11px] font-bold text-white"
+              style={{ backgroundColor: '#DE6464' }}
+            >
+              {pagina}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
+              disabled={pagina >= totalPaginas}
+              className="px-3 py-1.5 rounded-lg text-[11px] font-semibold border border-[#E5E7EB] disabled:opacity-40 hover:bg-[#FAF7F2]"
+            >
+              Próxima
+            </button>
+            <button
+              type="button"
+              onClick={() => setPagina(totalPaginas)}
+              disabled={pagina >= totalPaginas}
+              className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border border-[#E5E7EB] disabled:opacity-40 hover:bg-[#FAF7F2]"
+            >
+              »
+            </button>
+          </div>
         </div>
       )}
 
