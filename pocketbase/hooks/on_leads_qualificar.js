@@ -2,6 +2,12 @@
 // O motor de regras roda no frontend (src/lib/qualificacao.ts) e envia o resultado;
 // este hook garante a auditoria: resultado e pendências sempre gravados juntos,
 // qualificado_em/por preenchidos quando o status vira qualificado.
+// F1-T07 — SPEC 1.3: hook de qualificação — auditoria do processamento.
+// O motor de regras roda no frontend (src/lib/qualificacao.ts); este hook garante:
+// (1) estados de qualificação exigem justificativa gravada (auditável);
+// (2) qualificado preenche qualificado_em/por automaticamente.
+// Nota: o PATCH do frontend sempre envia qualificacao_resultado junto com o status —
+// a checagem usa o record original + o payload (original não tem o novo valor ainda).
 onRecordUpdate((e) => {
   const r = e.record
   const status = r.getString('status')
