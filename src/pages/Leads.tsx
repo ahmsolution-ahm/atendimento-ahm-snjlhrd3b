@@ -23,7 +23,11 @@ import {
   CheckCircle2,
   XCircle,
   Copy,
+  ClipboardCheck,
+  Info,
 } from 'lucide-react'
+import { qualificar, justificar } from '@/lib/qualificacao'
+import type { ResultadoQualificacao } from '@/lib/qualificacao'
 import {
   Dialog,
   DialogContent,
@@ -113,6 +117,14 @@ export default function Leads() {
     criados: number
     falhas: LinhaInvalida[]
   } | null>(null)
+
+  // F1-T07: motor de qualificação
+  const [qualificandoId, setQualificandoId] = useState<string | null>(null)
+  const [resultadoQualificacao, setResultadoQualificacao] = useState<{
+    lead: LeadRecord
+    resultado: ResultadoQualificacao
+  } | null>(null)
+  const [qualificando, setQualificando] = useState(false)
   const [form, setForm] = useState({
     nome: '',
     empresa: '',
@@ -246,6 +258,37 @@ export default function Leads() {
       })
     } finally {
       setImporting(false)
+    }
+  }
+
+  // F1-T07: executar o motor de qualificação no lead e gravar o resultado
+  const handleQualificar = async (lead: LeadRecord) => {
+    setQualificandoId(lead.id)
+    setQualificando(true)
+    try {
+      const produto = lead.expand?.produto_interesse
+        ? {
+            id: lead.expand.produto_interesse.id,
+            nome: lead.expand.produto_interesse.nome,
+            status: lead.expand.produto_interesse.status,
+            complexidade: lead.expand.produto_interesse.complexidade,
+            familia_tecnologica: lead.expand.produto_interesse.familia_tecnologica,
+          }
+        : null
+      const resultado = qualificar(lead, produto)
+      const just = justificar(resultado)
+      await leadsService.gravarQualificacao(lead.id, resultado, just, user?.id)
+      setResultadoQualificacao({ lead, resultado })
+      loadData()
+    } catch (err) {
+      toast({
+        title: 'Erro ao qualificar',
+        description: err instanceof Error ? err.message : 'Falha ao gravar a qualificação.',
+        variant: 'destructive',
+      })
+    } finally {
+      setQualificando(false)
+      setQualificandoId(null)
     }
   }
 
@@ -479,12 +522,102 @@ export default function Leads() {
                     {l.expand?.produto_interesse?.nome || '— pendente (sem produto de interesse)'}
                     {l.origem ? ` · Origem: ${l.origem}` : ''}
                   </p>
+                  {l.qualificacao_resultado && (
+                    <p className="text-[11px] text-[#6B7280] mt-1 line-clamp-2">
+                      <Info className="w-3 h-3 inline mr-1 -mt-0.5" />
+                      {l.qualificacao_resultado}
+                    </p>
+                  )}
                 </div>
+              </div>
+              <div className="shrink-0">
+                <button
+                  type="button"
+                  onClick={() => handleQualificar(l)}
+                  disabled={qualificando || qualificandoId === l.id}
+                  className="px-3 py-2 rounded-xl text-[11px] font-semibold text-[#030507] bg-white border border-[#E5E7EB] shadow-sm hover:bg-[#FAF7F2] disabled:opacity-50 flex items-center gap-1.5"
+                  title="Executar motor de qualificação (SPEC 1.3)"
+                >
+                  {qualificandoId === l.id ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <ClipboardCheck className="w-3.5 h-3.5" />
+                  )}
+                  Qualificar
+                </button>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      {/* Modal resultado da qualificação (F1-T07) */}
+      <Dialog
+        open={!!resultadoQualificacao}
+        onOpenChange={(open) => !open && setResultadoQualificacao(null)}
+      >
+        <DialogContent className="max-w-md bg-white p-6 rounded-2xl modal-ahm">
+          <DialogHeader>
+            <div
+              className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 ${
+                resultadoQualificacao?.resultado.status === 'qualificado'
+                  ? 'bg-emerald-50 text-[#059669]'
+                  : resultadoQualificacao?.resultado.status === 'pendente'
+                    ? 'bg-orange-50 text-[#C2410C]'
+                    : 'bg-gray-100 text-[#6B7280]'
+              }`}
+            >
+              <ClipboardCheck className="w-5 h-5" />
+            </div>
+            <DialogTitle className="text-lg font-bold text-[#030507]">
+              Resultado: {resultadoQualificacao?.resultado.status}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-[#6B7280]">
+              {resultadoQualificacao?.lead.nome} — {resultadoQualificacao?.lead.empresa}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-2">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#030507] mb-1.5">
+              Justificativa
+            </h4>
+            <ul className="space-y-1">
+              {resultadoQualificacao?.resultado.motivos.map((m, i) => (
+                <li key={i} className="text-[11px] text-[#030507] flex items-start gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#059669] shrink-0 mt-0.5" />
+                  {m}
+                </li>
+              ))}
+            </ul>
+            {resultadoQualificacao?.resultado.pendencias.length ? (
+              <>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-[#030507] mt-3 mb-1.5">
+                  Pendências
+                </h4>
+                <ul className="space-y-1">
+                  {resultadoQualificacao.resultado.pendencias.map((p, i) => (
+                    <li key={i} className="text-[11px] text-[#C2410C] flex items-start gap-1.5">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                      {p}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : null}
+          </div>
+
+          <div className="flex items-center justify-end pt-4">
+            <button
+              type="button"
+              onClick={() => setResultadoQualificacao(null)}
+              className="px-5 py-2 rounded-xl text-xs font-semibold text-white shadow-md"
+              style={{ backgroundColor: '#DE6464' }}
+            >
+              Fechar
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal Importação CSV — prévia (F1-T05) */}
       <Dialog open={!!importPreview} onOpenChange={(open) => !open && setImportPreview(null)}>

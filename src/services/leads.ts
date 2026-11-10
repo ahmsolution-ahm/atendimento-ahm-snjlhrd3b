@@ -38,6 +38,27 @@ export const leadsService = {
     })
   },
 
+  // F1-T07: gravar o resultado do motor de qualificação (status + justificativa + pendências)
+  async gravarQualificacao(
+    id: string,
+    resultado: { status: string; motivos: string[]; pendencias: string[] },
+    justificativa: string,
+    qualificadoPor?: string,
+  ): Promise<LeadRecord> {
+    return await pb.collection('leads').update<LeadRecord>(
+      id,
+      {
+        status: resultado.status as LeadInput['status'],
+        qualificacao_resultado: justificativa,
+        qualificacao_pendencias: resultado.pendencias,
+        qualificado_por: resultado.status === 'qualificado' ? qualificadoPor : undefined,
+      },
+      {
+        expand: 'produto_interesse,responsavel',
+      },
+    )
+  },
+
   // F1-T06 RN-1.5: consultar duplicidade local por contato+empresa (case-insensitive).
   // Retorna os leads existentes com a mesma chave — usado no formulário manual para avisar
   // ANTES de confirmar. Não bloqueia: o usuário decide (RN-1.5).
@@ -124,4 +145,8 @@ export interface LeadInput {
   responsavel?: string
   status: 'novo' | 'em qualificação' | 'qualificado' | 'pendente' | 'fora do recorte' | 'transbordo'
   incompleto?: boolean
+  qualificacao_resultado?: string
+  qualificacao_pendencias?: string[]
+  qualificado_em?: string
+  qualificado_por?: string
 }
