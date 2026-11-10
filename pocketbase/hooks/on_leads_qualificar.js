@@ -27,6 +27,28 @@ onRecordUpdate((e) => {
       r.set('qualificado_em', new Date().toISOString().replace('T', ' ').replace('Z', 'Z'))
       r.set('qualificado_por', e.auth?.id || r.getString('responsavel'))
     }
+
+    // F1-T09: bloquear qualificação com produto inexistente ou inativo (SPEC 1.3:
+    // qualificação bloqueia produto inválido SEM apagar o lead — o erro não toca nos dados)
+    const produtoId = r.getString('produto_interesse')
+    if (produtoId === '') {
+      throw new BadRequestError(
+        'Lead sem produto de interesse não pode ser qualificado (RN-1.6). Selecione um produto ativo ou mantenha o lead como pendente.',
+      )
+    }
+    let produto = null
+    try {
+      produto = $app.findRecordById('produtos', produtoId)
+    } catch (_) {
+      throw new BadRequestError(
+        'Produto de interesse não existe no catálogo. Edite o lead e selecione um produto ativo (o lead não foi alterado).',
+      )
+    }
+    if (produto.getString('status') !== 'Ativo') {
+      throw new BadRequestError(
+        `Produto "${produto.getString('nome')}" está inativo no catálogo. Edite o lead e selecione um produto ativo (o lead não foi alterado).`,
+      )
+    }
   }
   e.next()
 }, 'leads')

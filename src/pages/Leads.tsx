@@ -718,6 +718,18 @@ export default function Leads() {
                 className="w-full px-3 py-2.5 rounded-xl border border-[#E5E7EB] text-xs text-[#030507] bg-white outline-none focus:border-[#DE6464]"
               >
                 <option value="">— sem produto (lead fica pendente)</option>
+                {/* F1-T09: incluir o produto ATUAL do lead mesmo se inativo (marcado), para o
+                    usuário ver e trocar — esconderia informação e impediria o caminho de recuperação */}
+                {(() => {
+                  const atual = editLead?.expand?.produto_interesse
+                  const atualInativo = atual && atual.status !== 'Ativo'
+                  const jaListado = produtos.some((p) => p.id === atual?.id)
+                  return atualInativo && !jaListado ? (
+                    <option key={atual.id} value={atual.id}>
+                      {atual.nome} (inativo)
+                    </option>
+                  ) : null
+                })()}
                 {produtos.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.nome}
