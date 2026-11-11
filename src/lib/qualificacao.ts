@@ -34,6 +34,14 @@ export interface ResultadoQualificacao {
 }
 
 // sinais de complexidade técnica na dor — RN-1.10 (transbordo para especialista)
+// CORREÇÃO F1-T10: comparação sem acentos — "integração" (ç) não casava com "integrac" (c)
+// e o lead virava qualificado em vez de transbordo. Normalizar os DOIS lados.
+const normalizarAcentos = (s: string) =>
+  (s || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+
 const SINAIS_COMPLEXOS = [
   'integrac', // integração com sistemas
   'automac', // automação complexa
@@ -43,6 +51,7 @@ const SINAIS_COMPLEXOS = [
   'vários sites',
   'diversas plantas',
 ]
+=======
 
 export function qualificar(
   lead: LeadQualificacao,
@@ -83,9 +92,9 @@ export function qualificar(
     }
   }
 
-  // RN-1.10: sinais técnicos complexos na dor → transbordo
-  const dor = (lead.dor || '').toLowerCase()
-  const sinalComplexo = SINAIS_COMPLEXOS.find((s) => dor.includes(s))
+  // RN-1.10: sinais técnicos complexos na dor → transbordo (comparação sem acentos)
+  const dor = normalizarAcentos(lead.dor || '')
+  const sinalComplexo = SINAIS_COMPLEXOS.map(normalizarAcentos).find((s) => dor.includes(s))
   if (sinalComplexo) {
     return {
       status: 'transbordo',
