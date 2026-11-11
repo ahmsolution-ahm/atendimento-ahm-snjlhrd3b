@@ -365,6 +365,22 @@ export default function Transbordos() {
                       </p>
                     )}
                   </div>
+                  {/* F1-T12: situação atual do lead — visível sem sair da fila */}
+                  <div className="rounded-lg bg-muted p-3 text-sm">
+                    <p className="font-medium mb-1">Situação do lead</p>
+                    {itemSelecionado.expand?.lead ? (
+                      <p className="text-muted-foreground">
+                        {itemSelecionado.expand.lead.nome} está{' '}
+                        <span className="font-semibold text-[#030507]">
+                          {itemSelecionado.expand.lead.status}
+                        </span>
+                        {itemSelecionado.expand.lead.status === 'pendente' &&
+                          ' — devolvido para qualificação (RN-1.12); requalifique em Leads'}
+                      </p>
+                    ) : (
+                      <p className="text-muted-foreground">lead não disponível</p>
+                    )}
+                  </div>
                   {/* F1-T12: reabrir com motivo (rollback auditável) */}
                   <div className="space-y-1.5">
                     <Label>Reabrir transbordo (motivo obrigatório)</Label>
