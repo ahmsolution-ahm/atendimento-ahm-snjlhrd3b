@@ -49,14 +49,8 @@ const SINAIS_COMPLEXOS = [
   'multisite', // múltiplas unidades
   'multi-site',
   'vários sites',
-
-export function qualificar(
-=======
   'diversas plantas',
 ]
-
-export function qualificar(
-=======
 
 export function qualificar(
   lead: LeadQualificacao,
