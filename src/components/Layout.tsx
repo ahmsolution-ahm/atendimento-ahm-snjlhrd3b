@@ -10,6 +10,7 @@ import {
   Package,
   UserPlus,
   ArrowLeftRight,
+  Target,
   LogOut,
   Menu,
   X,
@@ -151,6 +152,8 @@ export default function Layout() {
         return 'Gestão de Leads'
       case '/transbordos':
         return 'Fila de Transbordo'
+      case '/oportunidades':
+        return 'Fila de Oportunidades'
       default:
         return 'Atendimento AHM'
     }
@@ -163,6 +166,7 @@ export default function Layout() {
     { name: 'Produtos', path: '/produtos', icon: Package },
     { name: 'Leads', path: '/leads', icon: UserPlus },
     { name: 'Transbordos', path: '/transbordos', icon: ArrowLeftRight },
+    { name: 'Oportunidades', path: '/oportunidades', icon: Target },
     { name: 'Equipe', path: '/equipe', icon: Users },
   ]
 

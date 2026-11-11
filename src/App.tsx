@@ -22,6 +22,7 @@ import Equipe from '@/pages/Equipe'
 import Produtos from '@/pages/Produtos'
 import Leads from '@/pages/Leads'
 import Transbordos from '@/pages/Transbordos'
+import Oportunidades from '@/pages/Oportunidades'
 
 const App = () => (
   <BrowserRouter>
@@ -52,6 +53,7 @@ const App = () => (
             <Route path="/produtos" element={<Produtos />} />
             <Route path="/leads" element={<Leads />} />
             <Route path="/transbordos" element={<Transbordos />} />
+            <Route path="/oportunidades" element={<Oportunidades />} />
           </Route>
 
           {/* 404 e Redirecionamentos */}

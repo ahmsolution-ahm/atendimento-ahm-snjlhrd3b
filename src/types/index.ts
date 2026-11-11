@@ -94,6 +94,21 @@ export type LeadStatus =
   | 'transbordo'
 export type LeadUrgencia = 'Baixa' | 'Média' | 'Alta'
 
+export interface OportunidadeRecord extends RecordModel {
+  lead: string
+  produto?: string
+  justificativa: string
+  confianca?: 'alta' | 'média' | 'baixa'
+  status: 'Sugerida' | 'Aprovada' | 'Rejeitada' | 'Em revisão'
+  comentario?: string
+  criado_em?: string
+  atualizado_em?: string
+  expand?: {
+    lead?: LeadRecord
+    produto?: ProdutoRecord
+  }
+}
+
 export interface TransbordoRecord extends RecordModel {
   lead: string
   produto?: string
