@@ -20,21 +20,26 @@ onRecordCreate((e) => {
 
 onRecordUpdate((e) => {
   const r = e.record
-  const statusNovo = r.getString('status')
-  const statusAnterior = r.original().getString('status')
-
-  if (statusNovo === 'Resolvido') {
-    if (r.getString('resolucao').trim() === '') {
-      throw new BadRequestError(
-        'Resolução vazia não fecha o transbordo (RN-1.12): registre a resposta do especialista antes de resolver.',
-      )
-    }
-    if (statusAnterior !== 'Resolvido') {
-      r.set('resolvido_em', new Date().toISOString())
-      r.set('resolvido_por', e.auth?.id || '')
-    }
+  // RN-1.12: resolução vazia não fecha o transbordo (validação de dados, vale para qualquer origem)
+  if (r.getString('status') === 'Resolvido' && r.getString('resolucao').trim() === '') {
+    throw new BadRequestError(
+      'Resolução vazia não fecha o transbordo (RN-1.12): registre a resposta do especialista antes de resolver.',
+    )
   }
-
   // reabrir (rollback): volta para Aberto — permitido, histórico preservado nos campos
+  return e.next()
+}, 'transbordos')
+
+// auditoria de quem resolveu — hook de REQUISIÇÃO (model hook não tem e.auth)
+onRecordUpdateRequest((e) => {
+  const r = e.record
+  if (
+    r.getString('status') === 'Resolvido' &&
+    r.original().getString('status') !== 'Resolvido' &&
+    r.getString('resolvido_por') === ''
+  ) {
+    r.set('resolvido_em', new Date().toISOString())
+    r.set('resolvido_por', e.auth?.id || '')
+  }
   return e.next()
 }, 'transbordos')
