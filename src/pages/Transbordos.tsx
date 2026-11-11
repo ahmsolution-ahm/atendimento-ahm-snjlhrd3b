@@ -71,16 +71,20 @@ export default function Transbordos() {
   const [especialistas, setEspecialistas] = useState<UserRecord[]>([])
   const [carregando, setCarregando] = useState(true)
 
+  // F1-T11: filtro por status (server-side) — pendentes de atribuição isoláveis
+  const [filtroStatus, setFiltroStatus] = useState<string>('')
+
   const [itemSelecionado, setItemSelecionado] = useState<TransbordoRecord | null>(null)
   const [resolucao, setResolucao] = useState('')
   const [especialistaEscolhido, setEspecialistaEscolhido] = useState('')
   const [salvando, setSalvando] = useState(false)
 
   const carregar = useCallback(
-    async (pag: number) => {
+    async (pag: number, filtro?: string) => {
       setCarregando(true)
       try {
-        const r = await transbordosService.listPaginado(pag, POR_PAGINA)
+        const f = filtro !== undefined ? filtro : filtroStatus
+        const r = await transbordosService.listPaginado(pag, POR_PAGINA, f || undefined)
         setItens(r.itens)
         setTotal(r.total)
         setTotalPaginas(Math.max(1, r.totalPaginas))
@@ -97,7 +101,7 @@ export default function Transbordos() {
         setCarregando(false)
       }
     },
-    [toast],
+    [toast, filtroStatus],
   )
 
   useEffect(() => {
@@ -163,6 +167,32 @@ export default function Transbordos() {
         <p className="text-sm text-muted-foreground">
           Casos técnicos complexos que exigem um especialista (SPEC 1.4 — RN-1.11/RN-1.12).
         </p>
+      </div>
+
+      {/* F1-T11: filtro por status (server-side) */}
+      <div className="flex flex-wrap gap-2">
+        {[
+          { label: 'Todos', valor: '' },
+          { label: 'Pendente atribuição', valor: 'Pendente atribuição' },
+          { label: 'Aberto', valor: 'Aberto' },
+          { label: 'Resolvido', valor: 'Resolvido' },
+        ].map((op) => (
+          <button
+            key={op.valor}
+            type="button"
+            onClick={() => {
+              setFiltroStatus(op.valor)
+              carregar(1, op.valor)
+            }}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+              filtroStatus === op.valor
+                ? 'bg-[#DE6464] text-white shadow-sm'
+                : 'bg-white text-[#374151] border border-[#E5E7EB] hover:bg-[#F3F4F6]'
+            }`}
+          >
+            {op.label}
+          </button>
+        ))}
       </div>
 
       {/* Contadores */}
