@@ -84,7 +84,9 @@ export default function Transbordos() {
       setCarregando(true)
       try {
         const f = filtro !== undefined ? filtro : filtroStatus
-        const r = await transbordosService.listPaginado(pag, POR_PAGINA, f || undefined)
+        // o chip entrega o VALOR do status; o serviço espera expressão de filtro
+        const expr = f ? `status='${f}'` : undefined
+        const r = await transbordosService.listPaginado(pag, POR_PAGINA, expr)
         setItens(r.itens)
         setTotal(r.total)
         setTotalPaginas(Math.max(1, r.totalPaginas))
