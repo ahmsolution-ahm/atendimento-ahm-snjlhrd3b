@@ -50,5 +50,49 @@ onRecordUpdate((e) => {
       )
     }
   }
+
+  // F1-T10 — SPEC 1.4 RN-1.11: qualificação marcando transbordo cria o item na fila
+  // automaticamente (uma vez por transição para transbordo; reabrir a fila é manual).
+  const statusAnterior = r.original().getString('status')
+  if (status === 'transbordo' && statusAnterior !== 'transbordo') {
+    const produtoId = r.getString('produto_interesse')
+    let produtoNome = ''
+    let especialistaId = ''
+    if (produtoId !== '') {
+      try {
+        const p = $app.findRecordById('produtos', produtoId)
+        produtoNome = p.getString('nome')
+        especialistaId = p.getString('especialista')
+      } catch (_) {
+        produtoNome = ''
+      }
+    }
+    const motivo = r.getString('qualificacao_resultado') || 'dúvida técnica exige especialista'
+    const jaExiste = (() => {
+      try {
+        $app.findFirstRecordByFilter('transbordos', "lead = {:lead} && status != 'Resolvido'", {
+          lead: r.id,
+        })
+        return true
+      } catch (_) {
+        return false
+      }
+    })()
+    if (!jaExiste) {
+      const col = $app.findCollectionByNameOrId('transbordos')
+      const item = new Record(col)
+      item.set('lead', r.id)
+      item.set('produto', produtoId)
+      item.set('motivo', motivo)
+      item.set('especialista', especialistaId)
+      item.set('status', especialistaId !== '' ? 'Aberto' : 'Pendente atribuição')
+      item.set(
+        'comentario',
+        `produto: ${produtoNome || 'não informado'} — criado pela qualificação`,
+      )
+      $app.save(item)
+    }
+  }
+
   e.next()
 }, 'leads')

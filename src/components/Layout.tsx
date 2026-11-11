@@ -9,6 +9,7 @@ import {
   Users,
   Package,
   UserPlus,
+  ArrowLeftRight,
   LogOut,
   Menu,
   X,
@@ -148,6 +149,8 @@ export default function Layout() {
         return 'Catálogo de Produtos'
       case '/leads':
         return 'Gestão de Leads'
+      case '/transbordos':
+        return 'Fila de Transbordo'
       default:
         return 'Atendimento AHM'
     }
@@ -159,6 +162,7 @@ export default function Layout() {
     { name: 'Atendimentos', path: '/atendimentos', icon: Headphones },
     { name: 'Produtos', path: '/produtos', icon: Package },
     { name: 'Leads', path: '/leads', icon: UserPlus },
+    { name: 'Transbordos', path: '/transbordos', icon: ArrowLeftRight },
     { name: 'Equipe', path: '/equipe', icon: Users },
   ]
 
