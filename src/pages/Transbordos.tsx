@@ -77,6 +77,7 @@ export default function Transbordos() {
   const [itemSelecionado, setItemSelecionado] = useState<TransbordoRecord | null>(null)
   const [resolucao, setResolucao] = useState('')
   const [especialistaEscolhido, setEspecialistaEscolhido] = useState('')
+  const [comentarioReabertura, setComentarioReabertura] = useState('')
   const [salvando, setSalvando] = useState(false)
 
   const carregar = useCallback(
@@ -121,6 +122,27 @@ export default function Transbordos() {
     setItemSelecionado(item)
     setResolucao(item.resolucao || '')
     setEspecialistaEscolhido(item.expand?.especialista?.id || item.especialista || '')
+    setComentarioReabertura('')
+  }
+
+  // F1-T12: reabrir transbordo resolvido (rollback auditável com motivo)
+  const reabrir = async () => {
+    if (!itemSelecionado || !comentarioReabertura.trim()) return
+    setSalvando(true)
+    try {
+      await transbordosService.reabrir(itemSelecionado.id, comentarioReabertura.trim())
+      toast({ title: 'Transbordo reaberto' })
+      setItemSelecionado(null)
+      carregar(pagina)
+    } catch (err) {
+      toast({
+        title: 'Erro ao reabrir',
+        description: err instanceof Error ? err.message : 'Falha inesperada.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSalvando(false)
+    }
   }
 
   const salvar = async () => {
@@ -333,14 +355,35 @@ export default function Transbordos() {
               </div>
 
               {itemSelecionado.status === 'Resolvido' ? (
-                <div className="rounded-lg bg-green-50 p-3 text-sm">
-                  <p className="font-medium mb-1">Resolução registrada</p>
-                  <p className="text-muted-foreground">{itemSelecionado.resolucao}</p>
-                  {itemSelecionado.expand?.resolvido_por && (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      por {itemSelecionado.expand.resolvido_por.name || 'usuário'}
-                    </p>
-                  )}
+                <div className="space-y-3">
+                  <div className="rounded-lg bg-green-50 p-3 text-sm">
+                    <p className="font-medium mb-1">Resolução registrada</p>
+                    <p className="text-muted-foreground">{itemSelecionado.resolucao}</p>
+                    {itemSelecionado.expand?.resolvido_por && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        por {itemSelecionado.expand.resolvido_por.name || 'usuário'}
+                      </p>
+                    )}
+                  </div>
+                  {/* F1-T12: reabrir com motivo (rollback auditável) */}
+                  <div className="space-y-1.5">
+                    <Label>Reabrir transbordo (motivo obrigatório)</Label>
+                    <Textarea
+                      value={comentarioReabertura}
+                      onChange={(e) => setComentarioReabertura(e.target.value)}
+                      placeholder="Por que este transbordo volta para Aberto?…"
+                      rows={2}
+                    />
+                  </div>
+                  <div className="flex justify-end">
+                    <Button
+                      variant="outline"
+                      onClick={reabrir}
+                      disabled={salvando || !comentarioReabertura.trim()}
+                    >
+                      {salvando ? 'Reabrindo…' : 'Reabrir transbordo'}
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 <>

@@ -70,6 +70,9 @@ export const transbordosService = {
 
   // reabrir com motivo (SPEC 1.4: rollback — transbordo pode ser reaberto)
   async reabrir(id: string, comentario: string): Promise<TransbordoRecord> {
+    if (!comentario.trim()) {
+      throw new Error('Reabertura exige comentário com o motivo (SPEC 1.4).')
+    }
     return await pb.collection('transbordos').update<TransbordoRecord>(id, {
       status: 'Aberto',
       comentario,
