@@ -112,6 +112,26 @@ export interface OportunidadeRecord extends RecordModel {
   }
 }
 
+export type InteracaoTipo = 'Ligação' | 'Reunião' | 'E-mail' | 'WhatsApp' | 'Visita' | 'Outro'
+
+export interface InteracaoRecord extends RecordModel {
+  lead: string
+  tipo: InteracaoTipo
+  data: string
+  responsavel?: string
+  observacao?: string
+  proposta?: boolean
+  cancelada?: boolean
+  cancelada_em?: string
+  cancelada_motivo?: string
+  cancelada_por?: string
+  criado_em?: string
+  expand?: {
+    responsavel?: UserRecord
+    cancelada_por?: UserRecord
+  }
+}
+
 export interface TransbordoRecord extends RecordModel {
   lead: string
   produto?: string

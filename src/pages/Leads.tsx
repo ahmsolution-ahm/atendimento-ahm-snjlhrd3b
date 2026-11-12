@@ -26,6 +26,7 @@ import {
   ClipboardCheck,
   Info,
 } from 'lucide-react'
+import TimelineInteracoes from '@/components/TimelineInteracoes'
 import { qualificar, justificativa } from '@/lib/qualificacao'
 import type { ResultadoQualificacao } from '@/lib/qualificacao'
 import {
@@ -886,6 +887,9 @@ export default function Leads() {
               {savingEdit ? 'Processando...' : 'Salvar e Requalificar'}
             </button>
           </div>
+
+          {/* F1-T19/T20/T21: timeline de interações até a proposta (grava na hora) */}
+          {editLead && <TimelineInteracoes leadId={editLead.id} />}
         </DialogContent>
       </Dialog>
 
