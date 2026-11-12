@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
@@ -6,23 +7,33 @@ import { AuthProvider } from '@/contexts/AuthContext'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import Layout from '@/components/Layout'
 
-// Páginas Públicas
-import Login from '@/pages/Login'
-import ForgotPassword from '@/pages/ForgotPassword'
-import ResetPassword from '@/pages/ResetPassword'
-import VerifyEmail from '@/pages/VerifyEmail'
-import ConfirmEmailChange from '@/pages/ConfirmEmailChange'
-import NotFound from '@/pages/NotFound'
+// Desempenho: cada tela carrega sob demanda (code splitting) — o navegador baixa
+// apenas o código da tela em uso, em vez de um pacote único de 2,8 MB.
+const Login = lazy(() => import('@/pages/Login'))
+const ForgotPassword = lazy(() => import('@/pages/ForgotPassword'))
+const ResetPassword = lazy(() => import('@/pages/ResetPassword'))
+const VerifyEmail = lazy(() => import('@/pages/VerifyEmail'))
+const ConfirmEmailChange = lazy(() => import('@/pages/ConfirmEmailChange'))
+const NotFound = lazy(() => import('@/pages/NotFound'))
 
-// Páginas Protegidas
-import Dashboard from '@/pages/Dashboard'
-import Tickets from '@/pages/Tickets'
-import Atendimentos from '@/pages/Atendimentos'
-import Equipe from '@/pages/Equipe'
-import Produtos from '@/pages/Produtos'
-import Leads from '@/pages/Leads'
-import Transbordos from '@/pages/Transbordos'
-import Oportunidades from '@/pages/Oportunidades'
+const Dashboard = lazy(() => import('@/pages/Dashboard'))
+const Tickets = lazy(() => import('@/pages/Tickets'))
+const Atendimentos = lazy(() => import('@/pages/Atendimentos'))
+const Equipe = lazy(() => import('@/pages/Equipe'))
+const Produtos = lazy(() => import('@/pages/Produtos'))
+const Leads = lazy(() => import('@/pages/Leads'))
+const Transbordos = lazy(() => import('@/pages/Transbordos'))
+const Oportunidades = lazy(() => import('@/pages/Oportunidades'))
+
+// Tela de carregamento durante a troca de página (sem tela em branco)
+const Carregando = () => (
+  <div className="min-h-screen flex items-center justify-center bg-[#FAF7F2]">
+    <div className="text-center">
+      <div className="w-10 h-10 border-4 border-[#DE6464] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+      <p className="text-sm text-[#6B7280]">Carregando…</p>
+    </div>
+  </div>
+)
 
 const App = () => (
   <BrowserRouter>
@@ -30,36 +41,38 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <Routes>
-          {/* Rotas Públicas */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/verify-email" element={<VerifyEmail />} />
-          <Route path="/confirm-email-change" element={<ConfirmEmailChange />} />
+        <Suspense fallback={<Carregando />}>
+          <Routes>
+            {/* Rotas Públicas */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/confirm-email-change" element={<ConfirmEmailChange />} />
 
-          {/* Rotas Protegidas com Layout Global */}
-          <Route
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/tickets" element={<Tickets />} />
-            <Route path="/atendimentos" element={<Atendimentos />} />
-            <Route path="/equipe" element={<Equipe />} />
-            <Route path="/produtos" element={<Produtos />} />
-            <Route path="/leads" element={<Leads />} />
-            <Route path="/transbordos" element={<Transbordos />} />
-            <Route path="/oportunidades" element={<Oportunidades />} />
-          </Route>
+            {/* Rotas Protegidas com Layout Global */}
+            <Route
+              element={
+                <ProtectedRoute>
+                  <Layout />
+                </ProtectedRoute>
+              }
+            >
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/tickets" element={<Tickets />} />
+              <Route path="/atendimentos" element={<Atendimentos />} />
+              <Route path="/equipe" element={<Equipe />} />
+              <Route path="/produtos" element={<Produtos />} />
+              <Route path="/leads" element={<Leads />} />
+              <Route path="/transbordos" element={<Transbordos />} />
+              <Route path="/oportunidades" element={<Oportunidades />} />
+            </Route>
 
-          {/* 404 e Redirecionamentos */}
-          <Route path="/404" element={<NotFound />} />
-          <Route path="*" element={<Navigate to="/404" replace />} />
-        </Routes>
+            {/* 404 e Redirecionamentos */}
+            <Route path="/404" element={<NotFound />} />
+            <Route path="*" element={<Navigate to="/404" replace />} />
+          </Routes>
+        </Suspense>
       </TooltipProvider>
     </AuthProvider>
   </BrowserRouter>
