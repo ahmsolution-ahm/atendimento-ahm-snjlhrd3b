@@ -126,9 +126,8 @@ export default function Dashboard() {
 
       const totalDia = atendimentos.filter((a) => a.created.substring(0, 10) === diaIso).length
 
-      // Simulação realista para demonstrar 7 dias visualmente atraente se base vazia
-      const mockValues = [4, 7, 5, 8, 12, 9, Math.max(totalDia, 6)]
-      const count = totalDia > 0 ? totalDia : mockValues[6 - i]
+      // Sem inventar dados: dias sem atendimentos mostram zero.
+      const count = totalDia
 
       result.push({
         dia: diaNome,
@@ -136,6 +135,19 @@ export default function Dashboard() {
       })
     }
     return result
+  }, [atendimentos])
+
+  // Tempo médio real de resolução (minutos) dos atendimentos do dia — sem número fixo no código
+  const tempoMedioMin = useMemo(() => {
+    const hojeIso = new Date().toISOString().substring(0, 10)
+    const doDia = atendimentos.filter((a) => a.created?.substring(0, 10) === hojeIso)
+    if (doDia.length === 0) return 0
+    const soma = doDia.reduce((acc, a) => {
+      const fim = a.updated ? new Date(a.updated.replace(' ', 'T')).getTime() : 0
+      const inicio = a.created ? new Date(a.created.replace(' ', 'T')).getTime() : 0
+      return acc + (fim > inicio ? (fim - inicio) / 60000 : 0)
+    }, 0)
+    return Math.round(soma / doDia.length)
   }, [atendimentos])
 
   const barColors = ['#DE6464', '#E5BE94', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899']
@@ -160,7 +172,7 @@ export default function Dashboard() {
               <span>Painel de Controle Comercial</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-[#030507] tracking-tight capitalize">
-              Olá, {user?.name?.split(' ')[0] || 'Afonso'}!
+              {user?.name ? `Olá, ${user.name.split(' ')[0]}!` : 'Olá!'}
             </h1>
             <p className="text-xs sm:text-sm text-[#6B7280] mt-1 capitalize">
               {dataHojeBR} — Acompanhe aqui as demandas e o fluxo de atendimentos da equipe.
@@ -243,7 +255,7 @@ export default function Dashboard() {
             </div>
             <div>
               <div className="text-3xl sm:text-4xl font-extrabold text-[#030507]">
-                <CountUp end={Math.max(resolvidosHoje, 3)} />
+                <CountUp end={resolvidosHoje} />
               </div>
               <p className="text-[11px] text-[#10B981] font-medium mt-1">
                 Alta eficiência da equipe comercial
@@ -264,7 +276,7 @@ export default function Dashboard() {
             </div>
             <div>
               <div className="text-3xl sm:text-4xl font-extrabold text-[#030507]">
-                <CountUp end={18} suffix=" min" />
+                <CountUp end={tempoMedioMin} suffix=" min" />
               </div>
               <p className="text-[11px] text-[#6B7280] mt-1">SLA corporativo meta: &lt; 30 min</p>
             </div>

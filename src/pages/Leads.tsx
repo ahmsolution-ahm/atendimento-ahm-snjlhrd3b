@@ -291,7 +291,7 @@ export default function Leads() {
       loadData()
       toast({
         title: 'Importação concluída',
-        description: `${result.criados} leads criados${result.falhas.length ? `, ${result.falhas.length} falharam` : ''}.`,
+        description: `${result.criados} ${result.criados === 1 ? 'lead criado' : 'leads criados'}${result.falhas.length ? `, ${result.falhas.length} ${result.falhas.length === 1 ? 'falhou' : 'falharam'}` : ''}.`,
       })
     } catch (err) {
       toast({
@@ -675,7 +675,7 @@ export default function Leads() {
                   onClick={() => handleQualificar(l)}
                   disabled={qualificando || qualificandoId === l.id}
                   className="px-3 py-2 rounded-xl text-[11px] font-semibold text-[#030507] bg-white border border-[#E5E7EB] shadow-sm hover:bg-[#FAF7F2] disabled:opacity-50 flex items-center gap-1.5"
-                  title="Executar motor de qualificação (SPEC 1.3)"
+                  title="Executar a qualificação do lead"
                 >
                   {qualificandoId === l.id ? (
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -689,7 +689,7 @@ export default function Leads() {
                     type="button"
                     onClick={() => setRollbackLead(l)}
                     className="px-3 py-2 rounded-xl text-[11px] font-semibold text-[#92400E] bg-amber-50 border border-amber-200 hover:bg-amber-100 flex items-center gap-1.5"
-                    title="Voltar para pendente com motivo (rollback auditável)"
+                    title="Devolver o lead para pendente com motivo registrado no histórico"
                   >
                     Devolver
                   </button>
@@ -896,7 +896,7 @@ export default function Leads() {
             </DialogTitle>
             <DialogDescription className="text-xs text-[#6B7280]">
               {rollbackLead?.nome} — {rollbackLead?.empresa}. O motivo é registrado no histórico da
-              qualificação (SPEC 1.3: rollback auditável).
+              qualificação.
             </DialogDescription>
           </DialogHeader>
           <div className="mt-2">
@@ -951,7 +951,8 @@ export default function Leads() {
               <ClipboardCheck className="w-5 h-5" />
             </div>
             <DialogTitle className="text-lg font-bold text-[#030507]">
-              Resultado: {resultadoQualificacao?.resultado.status}
+              Resultado:{' '}
+              {resultadoQualificacao ? STATUS_LABELS[resultadoQualificacao.resultado.status] : ''}
             </DialogTitle>
             <DialogDescription className="text-xs text-[#6B7280]">
               {resultadoQualificacao?.lead.nome} — {resultadoQualificacao?.lead.empresa}
@@ -1171,7 +1172,7 @@ export default function Leads() {
             >
               {importing
                 ? `Importando... ${importProgress.done}/${importProgress.total}`
-                : `Confirmar importação (${importPreview?.validas.length || 0} leads)`}
+                : `Confirmar importação (${importPreview?.validas.length || 0} ${importPreview?.validas.length === 1 ? 'lead' : 'leads'})`}
             </button>
           </div>
         </DialogContent>
@@ -1302,8 +1303,11 @@ export default function Leads() {
               <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-[#92400E] flex items-start gap-2">
                 <Copy className="w-4 h-4 shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <strong>Possível duplicidade:</strong> já existe(m) {duplicidade.length} lead(s)
-                  com este contato + empresa:
+                  <strong>Possível duplicidade:</strong>{' '}
+                  {duplicidade.length === 1
+                    ? 'já existe 1 lead'
+                    : `já existem ${duplicidade.length} leads`}{' '}
+                  com este contato e empresa:
                   <ul className="mt-1 space-y-0.5">
                     {duplicidade.slice(0, 3).map((d) => (
                       <li key={d.id} className="font-medium">

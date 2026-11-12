@@ -230,11 +230,9 @@ export default function Layout() {
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-semibold text-white truncate">
-                  {user?.name || 'Afonso Moreira'}
+                  {user?.name || 'Usuário'}
                 </p>
-                <p className="text-[10px] text-[#9CA3AF] truncate">
-                  {user?.email || 'afonso.moreira@ahmsolution.com'}
-                </p>
+                <p className="text-[10px] text-[#9CA3AF] truncate">{user?.email || ''}</p>
               </div>
             </div>
             <button
@@ -309,7 +307,7 @@ export default function Layout() {
               <div className="flex items-center justify-between">
                 <div className="min-w-0">
                   <p className="text-xs font-semibold text-white truncate">
-                    {user?.name || 'Afonso Moreira'}
+                    {user?.name || 'Usuário'}
                   </p>
                   <p className="text-[10px] text-[#9CA3AF] truncate">{user?.email}</p>
                 </div>
@@ -368,7 +366,9 @@ export default function Layout() {
                 <DropdownMenuLabel className="text-xs font-bold text-[#030507] px-2 py-1.5 flex items-center justify-between">
                   <span>Tickets Recentes (&lt; 24h)</span>
                   <span className="text-[10px] font-normal text-[#6B7280]">
-                    {recentNotifications.length} novos
+                    {recentNotifications.length === 1
+                      ? '1 novo'
+                      : `${recentNotifications.length} novos`}
                   </span>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
@@ -418,7 +418,7 @@ export default function Layout() {
               </div>
               <div className="hidden sm:block text-left">
                 <p className="text-xs font-bold text-[#030507] leading-tight">
-                  {user?.name || 'Afonso Moreira'}
+                  {user?.name || 'Usuário'}
                 </p>
                 <span className="text-[10px] text-[#10B981] font-semibold flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" /> Online

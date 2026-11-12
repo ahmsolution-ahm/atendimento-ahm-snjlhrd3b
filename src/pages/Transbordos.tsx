@@ -177,7 +177,7 @@ export default function Transbordos() {
 
   const nomeLead = (item: TransbordoRecord) => {
     const l = item.expand?.lead
-    return l ? `${l.nome} — ${l.empresa}` : 'lead removido'
+    return l ? `${l.nome} — ${l.empresa}` : 'Lead removido'
   }
 
   return (
@@ -380,7 +380,7 @@ export default function Transbordos() {
                           ' — devolvido para nova qualificação. Requalifique na tela Leads.'}
                       </p>
                     ) : (
-                      <p className="text-muted-foreground">lead não disponível</p>
+                      <p className="text-muted-foreground">Lead não disponível</p>
                     )}
                   </div>
                   {/* F1-T12: reabrir com motivo (rollback auditável) */}
