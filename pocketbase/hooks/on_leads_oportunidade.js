@@ -33,9 +33,15 @@ onRecordAfterUpdateSuccess((e) => {
     }
 
     if (existente) {
+      // F1-T15 (CA-1-015): duplicidade tratada fica sinalizada — acrescenta uma linha
+      // ao comentario sem apagar o histórico anterior.
+      const agora = new Date().toISOString()
+      const nota = `Justificativa atualizada pela requalificação do lead em ${agora.slice(0, 10)}.`
+      const anterior = existente.getString('comentario').trim()
       existente.set('justificativa', justificativa)
       existente.set('confianca', confianca)
-      existente.set('atualizado_em', new Date().toISOString())
+      existente.set('comentario', anterior ? `${anterior}\n${nota}` : nota)
+      existente.set('atualizado_em', agora)
       $app.save(existente)
       return
     }

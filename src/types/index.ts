@@ -103,9 +103,12 @@ export interface OportunidadeRecord extends RecordModel {
   comentario?: string
   criado_em?: string
   atualizado_em?: string
+  decidido_em?: string
+  decidido_por?: string
   expand?: {
     lead?: LeadRecord
     produto?: ProdutoRecord
+    decidido_por?: UserRecord
   }
 }
 

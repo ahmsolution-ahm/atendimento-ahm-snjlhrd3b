@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Dialog,
   DialogContent,
@@ -24,12 +26,15 @@ import {
   PaginationPrevious,
   PaginationNext,
 } from '@/components/ui/pagination'
-import { Target, Mail } from 'lucide-react'
+import { Target, Mail, CheckCircle2, XCircle, RotateCcw } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { oportunidadesService } from '@/services/oportunidades'
+import { oportunidadesService, type OportunidadesContadores } from '@/services/oportunidades'
 import type { OportunidadeRecord } from '@/types'
 
 const POR_PAGINA = 20
+
+// F1-T14: ação em andamento no modal (campo de comentário aberto)
+type ModoDecisao = null | 'revisao' | 'rejeitar' | 'voltar'
 
 const statusBadge = (status: OportunidadeRecord['status']) => {
   switch (status) {
@@ -54,6 +59,21 @@ const confiancaBadge = (c?: string) => {
   return null
 }
 
+const formatarDataHora = (valor?: string) => {
+  if (!valor) return ''
+  const d = new Date(valor.replace(' ', 'T'))
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+}
+
+const CONTADORES_INICIAIS: OportunidadesContadores = {
+  total: 0,
+  sugeridas: 0,
+  aprovadas: 0,
+  rejeitadas: 0,
+  emRevisao: 0,
+}
+
 export default function Oportunidades() {
   const { toast } = useToast()
 
@@ -61,11 +81,14 @@ export default function Oportunidades() {
   const [pagina, setPagina] = useState(1)
   const [totalPaginas, setTotalPaginas] = useState(1)
   const [total, setTotal] = useState(0)
-  const [contadores, setContadores] = useState({ total: 0, sugeridas: 0, aprovadas: 0 })
+  const [contadores, setContadores] = useState<OportunidadesContadores>(CONTADORES_INICIAIS)
   const [carregando, setCarregando] = useState(true)
   const [filtroStatus, setFiltroStatus] = useState<string>('')
 
   const [itemSelecionado, setItemSelecionado] = useState<OportunidadeRecord | null>(null)
+  const [modo, setModo] = useState<ModoDecisao>(null)
+  const [texto, setTexto] = useState('')
+  const [salvando, setSalvando] = useState(false)
 
   const carregar = useCallback(
     async (pag: number, filtro?: string) => {
@@ -100,12 +123,64 @@ export default function Oportunidades() {
 
   const abrirDetalhe = (item: OportunidadeRecord) => {
     setItemSelecionado(item)
+    setModo(null)
+    setTexto('')
+  }
+
+  const fecharDetalhe = () => {
+    setItemSelecionado(null)
+    setModo(null)
+    setTexto('')
+  }
+
+  const escolherModo = (m: ModoDecisao) => {
+    setModo(m)
+    setTexto('')
+  }
+
+  // F1-T14: executa a decisão; o modal permanece aberto mostrando o estado resultante
+  // (AP-2026-11-11-0600 — efeito visível onde o usuário está) e a fila é recarregada.
+  const decidir = async (acao: 'aprovar' | 'revisao' | 'rejeitar' | 'voltar') => {
+    if (!itemSelecionado) return
+    setSalvando(true)
+    try {
+      let atualizado: OportunidadeRecord
+      let titulo: string
+      if (acao === 'aprovar') {
+        atualizado = await oportunidadesService.aprovar(itemSelecionado)
+        titulo = 'Oportunidade aprovada'
+      } else if (acao === 'rejeitar') {
+        atualizado = await oportunidadesService.rejeitar(itemSelecionado, texto)
+        titulo = 'Oportunidade rejeitada'
+      } else {
+        atualizado = await oportunidadesService.pedirRevisao(itemSelecionado, texto)
+        titulo = 'Oportunidade em revisão'
+      }
+      toast({ title: titulo })
+      setItemSelecionado(atualizado)
+      setModo(null)
+      setTexto('')
+      carregar(pagina)
+    } catch (err) {
+      toast({
+        title: 'Não foi possível registrar a decisão',
+        description: err instanceof Error ? err.message : 'Ocorreu uma falha inesperada.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSalvando(false)
+    }
   }
 
   const nomeLead = (item: OportunidadeRecord) => {
     const l = item.expand?.lead
-    return l ? `${l.nome} — ${l.empresa}` : 'lead removido'
+    return l ? `${l.nome} — ${l.empresa}` : 'Lead removido'
   }
+
+  const nomeDecisor = (item: OportunidadeRecord) =>
+    item.expand?.decidido_por?.name || item.expand?.decidido_por?.email || 'Usuário'
+
+  const aberta = itemSelecionado?.status === 'Sugerida' || itemSelecionado?.status === 'Em revisão'
 
   return (
     <div className="space-y-6 p-6">
@@ -148,29 +223,23 @@ export default function Oportunidades() {
         ))}
       </div>
 
-      {/* Contadores */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Total na fila</CardDescription>
-            <CardTitle className="text-2xl">{contadores.total}</CardTitle>
-          </CardHeader>
-          <CardContent />
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Sugeridas</CardDescription>
-            <CardTitle className="text-2xl">{contadores.sugeridas}</CardTitle>
-          </CardHeader>
-          <CardContent />
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Aprovadas</CardDescription>
-            <CardTitle className="text-2xl">{contadores.aprovadas}</CardTitle>
-          </CardHeader>
-          <CardContent />
-        </Card>
+      {/* Contadores (F1-T14: + Rejeitadas e Em revisão) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        {[
+          { rotulo: 'Total na fila', valor: contadores.total },
+          { rotulo: 'Sugeridas', valor: contadores.sugeridas },
+          { rotulo: 'Em revisão', valor: contadores.emRevisao },
+          { rotulo: 'Aprovadas', valor: contadores.aprovadas },
+          { rotulo: 'Rejeitadas', valor: contadores.rejeitadas },
+        ].map((c) => (
+          <Card key={c.rotulo}>
+            <CardHeader className="pb-2">
+              <CardDescription>{c.rotulo}</CardDescription>
+              <CardTitle className="text-2xl">{c.valor}</CardTitle>
+            </CardHeader>
+            <CardContent />
+          </Card>
+        ))}
       </div>
 
       {/* Fila */}
@@ -255,9 +324,9 @@ export default function Oportunidades() {
         </CardContent>
       </Card>
 
-      {/* Modal de detalhe (decisões humanas são da F1-T14) */}
-      <Dialog open={!!itemSelecionado} onOpenChange={(open) => !open && setItemSelecionado(null)}>
-        <DialogContent className="max-w-lg">
+      {/* Modal de detalhe + decisões (F1-T14) */}
+      <Dialog open={!!itemSelecionado} onOpenChange={(open) => !open && fecharDetalhe()}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               Oportunidade — {itemSelecionado ? nomeLead(itemSelecionado) : ''}
@@ -271,11 +340,33 @@ export default function Oportunidades() {
 
           {itemSelecionado && (
             <div className="space-y-4">
+              {/* Situação da oportunidade + última decisão */}
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                {statusBadge(itemSelecionado.status)}
+                {itemSelecionado.decidido_em && (
+                  <span className="text-xs text-muted-foreground">
+                    Decidido em {formatarDataHora(itemSelecionado.decidido_em)} por{' '}
+                    {nomeDecisor(itemSelecionado)}
+                  </span>
+                )}
+              </div>
+
               <div className="rounded-lg bg-muted p-3 text-sm">
                 <p className="font-medium mb-1">Por que esta oportunidade foi sugerida</p>
                 <p className="text-muted-foreground">{itemSelecionado.justificativa}</p>
                 <div className="mt-2">{confiancaBadge(itemSelecionado.confianca)}</div>
               </div>
+
+              {/* Histórico de comentários (decisões e requalificações acumuladas) */}
+              {itemSelecionado.comentario && (
+                <div className="rounded-lg border border-[#E5E7EB] bg-white p-3 text-sm">
+                  <p className="font-medium mb-1">Comentários</p>
+                  <p className="whitespace-pre-line text-muted-foreground">
+                    {itemSelecionado.comentario}
+                  </p>
+                </div>
+              )}
+
               {/* AP-2026-11-11-0600: situação do lead visível onde o usuário está */}
               <div className="rounded-lg bg-muted p-3 text-sm">
                 <p className="font-medium mb-1">Situação do lead</p>
@@ -287,10 +378,11 @@ export default function Oportunidades() {
                     </span>
                   </p>
                 ) : (
-                  <p className="text-muted-foreground">lead não disponível</p>
+                  <p className="text-muted-foreground">Lead não disponível.</p>
                 )}
               </div>
-              {/* Contato do lead — o executivo precisa ver com quem falar (F1-T13 correção) */}
+
+              {/* Contato do lead — o executivo precisa ver com quem falar */}
               {itemSelecionado.expand?.lead && (
                 <div className="rounded-lg border border-[#E5E7EB] bg-white p-3 text-sm">
                   <p className="font-medium mb-1.5">Contato</p>
@@ -309,17 +401,115 @@ export default function Oportunidades() {
                     {!itemSelecionado.expand.lead.contato &&
                       !itemSelecionado.expand.lead.observacoes && (
                         <p className="text-muted-foreground">
-                          Nenhum contato registrado neste lead
+                          Nenhum contato registrado neste lead.
                         </p>
                       )}
                   </div>
                 </div>
               )}
-              <div className="flex justify-end">
-                <Button variant="outline" onClick={() => setItemSelecionado(null)}>
-                  Fechar
-                </Button>
-              </div>
+
+              {/* Campo de comentário da decisão em andamento */}
+              {modo && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="comentario-decisao">
+                    {modo === 'rejeitar'
+                      ? 'Motivo da rejeição (obrigatório)'
+                      : modo === 'voltar'
+                        ? 'Justificativa da volta para revisão (obrigatória)'
+                        : 'Comentário para a revisão (opcional)'}
+                  </Label>
+                  <Textarea
+                    id="comentario-decisao"
+                    value={texto}
+                    onChange={(e) => setTexto(e.target.value)}
+                    rows={3}
+                    placeholder={
+                      modo === 'rejeitar'
+                        ? 'Explique por que esta oportunidade não será seguida.'
+                        : modo === 'voltar'
+                          ? 'Explique por que a aprovação precisa ser revista.'
+                          : 'Recomendado: indique o que precisa ser revisado.'
+                    }
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button variant="ghost" onClick={() => escolherModo(null)} disabled={salvando}>
+                      Cancelar
+                    </Button>
+                    {modo === 'rejeitar' && (
+                      <Button
+                        variant="destructive"
+                        onClick={() => decidir('rejeitar')}
+                        disabled={salvando || !texto.trim()}
+                      >
+                        {salvando ? 'Registrando…' : 'Confirmar rejeição'}
+                      </Button>
+                    )}
+                    {modo === 'revisao' && (
+                      <Button onClick={() => decidir('revisao')} disabled={salvando}>
+                        {salvando ? 'Registrando…' : 'Confirmar pedido de revisão'}
+                      </Button>
+                    )}
+                    {modo === 'voltar' && (
+                      <Button
+                        onClick={() => decidir('voltar')}
+                        disabled={salvando || !texto.trim()}
+                      >
+                        {salvando ? 'Registrando…' : 'Confirmar volta para revisão'}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Botões de decisão */}
+              {!modo && (
+                <div className="flex flex-wrap justify-end gap-2">
+                  <Button variant="outline" onClick={fecharDetalhe}>
+                    Fechar
+                  </Button>
+                  {aberta && (
+                    <>
+                      <Button
+                        variant="outline"
+                        className="text-red-700"
+                        onClick={() => escolherModo('rejeitar')}
+                        disabled={salvando}
+                      >
+                        <XCircle className="w-4 h-4 mr-1.5" />
+                        Rejeitar
+                      </Button>
+                      {itemSelecionado.status === 'Sugerida' && (
+                        <Button
+                          variant="outline"
+                          onClick={() => escolherModo('revisao')}
+                          disabled={salvando}
+                        >
+                          <RotateCcw className="w-4 h-4 mr-1.5" />
+                          Pedir revisão
+                        </Button>
+                      )}
+                      <Button
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                        onClick={() => decidir('aprovar')}
+                        disabled={salvando}
+                      >
+                        <CheckCircle2 className="w-4 h-4 mr-1.5" />
+                        {salvando ? 'Registrando…' : 'Aprovar'}
+                      </Button>
+                    </>
+                  )}
+                  {itemSelecionado.status === 'Aprovada' && (
+                    <Button
+                      variant="outline"
+                      onClick={() => escolherModo('voltar')}
+                      disabled={salvando}
+                    >
+                      <RotateCcw className="w-4 h-4 mr-1.5" />
+                      Voltar para revisão
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </DialogContent>
