@@ -9,7 +9,7 @@ import {
   type ResultadoK2,
   type ResultadoK3,
 } from '@/lib/metricas'
-import type { InteracaoRecord, UserRecord } from '@/types'
+import type { InteracaoRecord } from '@/types'
 
 // F1-T16 — SPEC 1.6: leitura dos dados para os indicadores.
 // Tudo é CONTADO no servidor (getList com 1 item por página → totalItems) — nunca carrega
@@ -25,9 +25,11 @@ export interface DadosK1 extends ResultadoK1 {
   semProduto: number
 }
 
-export interface DadosK3 extends ResultadoK3 {
-  totalLeadsPeriodo: number
-}
+export type DadosK3 = ResultadoK3
+
+// períodos e fontes aceitos pela rota de capacidade (valores fixos — o servidor recusa outros)
+export type DiasMetricas = 7 | 30 | 90 | null
+export type FonteMetricas = 'todas' | 'manual' | 'csv' | 'demo'
 
 export const metricasService = {
   /**
@@ -83,33 +85,18 @@ export const metricasService = {
   },
 
   /**
-   * Capacidade por vendedor. Processado = lead que passou pela qualificação (não é novo,
-   * não está em qualificação, não é rascunho). Sem responsável = pendência de dados.
+   * Capacidade por vendedor — agregada no servidor (rota metricas_capacidade.js), porque o
+   * usuário logado não tem acesso à lista de usuários. Processado = lead que passou pela
+   * qualificação (não é novo, não está em qualificação, não é rascunho).
    */
-  async capacidadePorVendedor(filtroLeads: string): Promise<DadosK3> {
-    const processado = juntarFiltros(
-      filtroLeads,
-      "status != 'novo'",
-      "status != 'em qualificação'",
-      'incompleto != true',
-    )
-    const usuarios = await pb
-      .collection('users')
-      .getList<UserRecord>(1, 200, { sort: 'name', fields: 'id,name,email' })
-    const [porVendedor, semResponsavel, totalLeadsPeriodo] = await Promise.all([
-      Promise.all(
-        usuarios.items.map(async (u) => ({
-          id: u.id,
-          nome: u.name || u.email || 'Usuário',
-          processados: await contar(
-            'leads',
-            juntarFiltros(processado, pb.filter('responsavel = {:id}', { id: u.id })),
-          ),
-        })),
-      ),
-      contar('leads', juntarFiltros(processado, "responsavel = ''")),
-      contar('leads', filtroLeads),
-    ])
-    return { ...calcularK3(porVendedor, semResponsavel), totalLeadsPeriodo }
+  async capacidadePorVendedor(dias: DiasMetricas, fonte: FonteMetricas): Promise<DadosK3> {
+    const r = await pb.send<{
+      vendedores: { id: string; nome: string; processados: number }[]
+      semResponsavel: number
+    }>('/backend/v1/metricas/capacidade', {
+      method: 'GET',
+      query: { dias: dias === null ? 'todos' : String(dias), fonte },
+    })
+    return calcularK3(r.vendedores || [], r.semResponsavel || 0)
   },
 }

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { BarChart3, Bot, Repeat, Users, Copy, Database, Trash2, RefreshCw } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
-import { metricasService, type DadosK1, type DadosK3 } from '@/services/metricas'
+import { metricasService, type DadosK1, type DadosK3, type DiasMetricas } from '@/services/metricas'
 import { demonstracaoService, ORIGEM_DEMO } from '@/services/demonstracao'
 import {
   AMOSTRA_MINIMA_K1,
@@ -95,7 +95,7 @@ export default function Metricas() {
       const [r1, r2, r3, demo] = await Promise.all([
         metricasService.qualificacaoAutomatica(filtroLeads),
         metricasService.interacoesAteProposta(filtroPropostas),
-        metricasService.capacidadePorVendedor(filtroLeads),
+        metricasService.capacidadePorVendedor(dias as DiasMetricas, fonte),
         demonstracaoService.quantidade(),
       ])
       setK1(r1)
