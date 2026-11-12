@@ -313,7 +313,6 @@ export default function Oportunidades() {
                   </div>
                 </div>
               )}
-              =======
               <div className="flex justify-end">
                 <Button variant="outline" onClick={() => setItemSelecionado(null)}>
                   Fechar
