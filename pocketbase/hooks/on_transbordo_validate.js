@@ -50,28 +50,37 @@ onRecordUpdateRequest((e) => {
 // Devolução direta a "oportunidade" fica para a F1-T13 (coleção ainda não existe).
 // Reabertura (Resolvido → Aberto) NÃO altera o lead: ele permanece pendente até
 // ser requalificado manualmente (evita loop automático transbordo↔qualificação).
+// Todo caminho termina em e.next() (finally) — sem isso o realtime e os demais
+// handlers after-success de transbordos não rodam.
 onRecordAfterUpdateSuccess((e) => {
-  const r = e.record
-  const virouResolvido =
-    r.getString('status') === 'Resolvido' && r.original().getString('status') !== 'Resolvido'
-  if (!virouResolvido) return
-  const leadId = r.getString('lead')
-  if (leadId === '') return
   try {
-    const lead = $app.findRecordById('leads', leadId)
-    const resolucao = r.getString('resolucao')
-    const resumo = resolucao.length > 120 ? resolucao.slice(0, 117) + '...' : resolucao
-    if (lead.getString('status') === 'transbordo') {
-      lead.set('status', 'pendente')
-      lead.set(
-        'qualificacao_resultado',
-        `Resolução do especialista: ${resumo} — Lead devolvido para nova qualificação.`,
-      )
-      lead.set('qualificacao_pendencias', ['Requalificar após a resolução do transbordo'])
-      $app.save(lead)
+    const r = e.record
+    const virouResolvido =
+      r.getString('status') === 'Resolvido' && r.original().getString('status') !== 'Resolvido'
+    const leadId = r.getString('lead')
+    if (virouResolvido && leadId !== '') {
+      try {
+        const lead = $app.findRecordById('leads', leadId)
+        const resolucao = r.getString('resolucao')
+        const resumo = resolucao.length > 120 ? resolucao.slice(0, 117) + '...' : resolucao
+        if (lead.getString('status') === 'transbordo') {
+          lead.set('status', 'pendente')
+          lead.set(
+            'qualificacao_resultado',
+            `Resolução do especialista: ${resumo} — Lead devolvido para nova qualificação.`,
+          )
+          lead.set('qualificacao_pendencias', ['Requalificar após a resolução do transbordo'])
+          $app.save(lead)
+        }
+      } catch (err) {
+        // lead removido ou indisponível: a resolução do item permanece válida
+        $app.logger().warn('F1-T12: lead não devolvido na resolução', {
+          leadId,
+          err: String(err),
+        })
+      }
     }
-  } catch (err) {
-    // lead removido ou indisponível: a resolução do item permanece válida
-    $app.logger().warn('F1-T12: lead não devolvido na resolução', { leadId, err: String(err) })
+  } finally {
+    e.next()
   }
 }, 'transbordos')
