@@ -151,9 +151,9 @@ export default function Layout() {
       case '/leads':
         return 'Gestão de Leads'
       case '/transbordos':
-        return 'Fila de Transbordo'
+        return 'Transbordos'
       case '/oportunidades':
-        return 'Fila de Oportunidades'
+        return 'Oportunidades'
       default:
         return 'Atendimento AHM'
     }

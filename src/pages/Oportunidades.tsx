@@ -46,11 +46,11 @@ const statusBadge = (status: OportunidadeRecord['status']) => {
 
 const confiancaBadge = (c?: string) => {
   if (c === 'alta')
-    return <Badge className="bg-green-50 text-green-700 hover:bg-green-50">confiança alta</Badge>
+    return <Badge className="bg-green-50 text-green-700 hover:bg-green-50">Confiança alta</Badge>
   if (c === 'média')
-    return <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-50">confiança média</Badge>
+    return <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-50">Confiança média</Badge>
   if (c === 'baixa')
-    return <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100">confiança baixa</Badge>
+    return <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100">Confiança baixa</Badge>
   return null
 }
 
@@ -178,7 +178,9 @@ export default function Oportunidades() {
         <CardHeader>
           <CardTitle className="text-base">Oportunidades</CardTitle>
           <CardDescription>
-            {carregando ? 'Carregando…' : `${total} item(ns) — página ${pagina} de ${totalPaginas}`}
+            {carregando
+              ? 'Carregando…'
+              : `${total} ${total === 1 ? 'item' : 'itens'} — página ${pagina} de ${totalPaginas}`}
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -251,7 +251,9 @@ export default function Transbordos() {
             <Search className="w-4 h-4" /> Itens na fila
           </CardTitle>
           <CardDescription>
-            {carregando ? 'Carregando…' : `${total} item(ns) — página ${pagina} de ${totalPaginas}`}
+            {carregando
+              ? 'Carregando…'
+              : `${total} ${total === 1 ? 'item' : 'itens'} — página ${pagina} de ${totalPaginas}`}
           </CardDescription>
         </CardHeader>
         <CardContent>
