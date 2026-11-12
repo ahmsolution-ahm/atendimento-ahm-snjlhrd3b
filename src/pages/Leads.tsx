@@ -1166,7 +1166,7 @@ export default function Leads() {
                 <div>
                   <strong>Possíveis duplicidades:</strong>{' '}
                   {importPreview.duplicadasNaBase.length > 0 &&
-                    `${importPreview.duplicadasNaBase.length} já existem na base (mesmo contato+empresa)`}
+                    `${importPreview.duplicadasNaBase.length === 1 ? '1 já existe na base' : `${importPreview.duplicadasNaBase.length} já existem na base`} (mesmo contato+empresa)`}
                   {importPreview.duplicadasNaBase.length > 0 &&
                     importPreview.duplicadasNoArquivo.length > 0 &&
                     ' · '}
