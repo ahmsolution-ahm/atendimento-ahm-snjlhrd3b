@@ -7,6 +7,10 @@ import { chaveDuplicidade, telefoneDaLinha } from '@/lib/csvImport'
 const LOTE_CONTATOS = 30 // contatos por consulta (expressão de filtro com OR)
 const LIMITE_POR_LOTES = 300 // acima disso, varre a base em páginas leves (só 2 campos)
 const PAGINA_VARREDURA = 1000
+// Bloco 5: criação paralela — quantas requisições de criação ao mesmo tempo
+const CRIACOES_SIMULTANEAS = 10
+
+const esperar = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 export interface ImportPreview {
   total: number
@@ -221,24 +225,26 @@ export const leadsService = {
    * A comparação final é exata (contato + empresa, sem diferenciar maiúsculas).
    */
   async chavesExistentesNaBase(
-    linhas: Pick<CsvLeadRow, 'contato' | 'empresa'>[],
+    linhas: Pick<CsvLeadRow, 'contato' | 'empresa' | 'nome'>[],
   ): Promise<Set<string>> {
-    const chavesArquivo = new Set(
-      linhas.filter((l) => l.contato.trim()).map((l) => chaveDuplicidade(l.contato, l.empresa)),
-    )
+    // Bloco 5: linhas sem contato também são verificadas (chave nome + empresa)
+    const chavesArquivo = new Set(linhas.map((l) => chaveDuplicidade(l.contato, l.empresa, l.nome)))
     const existentes = new Set<string>()
     if (chavesArquivo.size === 0) return existentes
 
-    const registrar = (itens: { contato?: string; empresa?: string }[]) => {
+    const registrar = (itens: { contato?: string; empresa?: string; nome?: string }[]) => {
       for (const it of itens) {
-        const k = chaveDuplicidade(it.contato || '', it.empresa || '')
+        const k = chaveDuplicidade(it.contato || '', it.empresa || '', it.nome || '')
         if (chavesArquivo.has(k)) existentes.add(k)
       }
     }
 
     const contatos = [...new Set(linhas.map((l) => l.contato.trim().toLowerCase()).filter(Boolean))]
+    const temLinhaSemContato = linhas.some((l) => !l.contato.trim())
 
-    if (contatos.length <= LIMITE_POR_LOTES) {
+    // consulta por lotes só serve para linhas com contato; havendo linha sem contato,
+    // a varredura (que traz também o nome) cobre todos os casos
+    if (contatos.length <= LIMITE_POR_LOTES && !temLinhaSemContato) {
       const lotes: string[][] = []
       for (let i = 0; i < contatos.length; i += LOTE_CONTATOS) {
         lotes.push(contatos.slice(i, i + LOTE_CONTATOS))
@@ -263,7 +269,7 @@ export const leadsService = {
 
     for (let pagina = 1; ; pagina++) {
       const r = await pb.collection('leads').getList<LeadRecord>(pagina, PAGINA_VARREDURA, {
-        fields: 'contato,empresa',
+        fields: 'contato,empresa,nome',
         sort: 'id',
         skipTotal: true,
       })
@@ -273,7 +279,10 @@ export const leadsService = {
     return existentes
   },
 
-  // F1-T05: importação em lote — cria as linhas válidas uma a uma e reporta falhas por linha.
+  // F1-T05: importação em lote — recebe SOMENTE os leads novos (Bloco 5: a tela já removeu os
+  // duplicados) e reporta falhas por linha.
+  // Bloco 5: criação PARALELA (10 simultâneas) com 1 nova tentativa por item; falha definitiva
+  // é registrada e a importação segue.
   // RN-1.4: linha sem nome+empresa+contato vai como rascunho (incompleto=true); RN-1.6 aplica pendente via hook.
   async importarLote(
     linhas: CsvLeadRow[],
@@ -281,49 +290,79 @@ export const leadsService = {
     responsavel: string,
     onProgress?: (done: number, total: number) => void,
   ): Promise<{ criados: number; falhas: LinhaInvalida[] }> {
-    const criados: number[] = []
+    let criados = 0
     const falhas: LinhaInvalida[] = []
     let done = 0
-    for (const l of linhas) {
-      try {
-        const produtoId = l.produto_interesse
-          ? produtoPorNome.get(l.produto_interesse.trim().toLowerCase())
-          : undefined
-        const completo = !!(l.nome && l.empresa && l.contato)
-        // Bloco 4: telefone vai para o campo próprio (principal; na falta dele, o celular).
-        // Se houver os dois, o celular fica registrado nas observações.
-        const telefone = telefoneDaLinha(l)
-        const celularExtra = l.telefone && l.celular && l.celular !== l.telefone ? l.celular : ''
-        await pb.collection('leads').create({
-          nome: l.nome || '',
-          empresa: l.empresa || '',
-          contato: l.contato || '',
-          telefone,
-          origem: l.origem || 'Importação CSV',
-          produto_interesse: produtoId,
-          dor: l.dor,
-          urgencia: l.urgencia,
-          observacoes:
-            [l.cargo ? `Cargo: ${l.cargo}` : '', celularExtra ? `Celular: ${celularExtra}` : '']
-              .filter(Boolean)
-              .join(' · ') || undefined,
-          responsavel,
-          status: completo ? 'novo' : 'pendente',
-          incompleto: !completo,
-        })
-        criados.push(l.linha)
-      } catch (err) {
-        const msg =
-          typeof err === 'object' && err !== null && 'message' in err
-            ? String((err as { message: string }).message)
-            : 'erro desconhecido'
-        falhas.push({ linha: l.linha, motivo: msg, dados: [l.nome, l.empresa, l.contato] })
+    let proximo = 0
+
+    const criarUm = async (l: CsvLeadRow) => {
+      const produtoId = l.produto_interesse
+        ? produtoPorNome.get(l.produto_interesse.trim().toLowerCase())
+        : undefined
+      const completo = !!(l.nome && l.empresa && l.contato)
+      // Bloco 4: telefone vai para o campo próprio (principal; na falta dele, o celular).
+      // Se houver os dois, o celular fica registrado nas observações.
+      const telefone = telefoneDaLinha(l)
+      const celularExtra = l.telefone && l.celular && l.celular !== l.telefone ? l.celular : ''
+      const dados = {
+        nome: l.nome || '',
+        empresa: l.empresa || '',
+        contato: l.contato || '',
+        telefone,
+        origem: l.origem || 'Importação CSV',
+        produto_interesse: produtoId,
+        dor: l.dor,
+        urgencia: l.urgencia,
+        observacoes:
+          [l.cargo ? `Cargo: ${l.cargo}` : '', celularExtra ? `Celular: ${celularExtra}` : '']
+            .filter(Boolean)
+            .join(' · ') || undefined,
+        responsavel,
+        status: completo ? 'novo' : 'pendente',
+        incompleto: !completo,
       }
-      done++
-      if (onProgress && done % 50 === 0) onProgress(done, linhas.length)
+      for (let tentativa = 1; ; tentativa++) {
+        try {
+          // requestKey null: o SDK não cancela requisições paralelas à mesma coleção
+          await pb.collection('leads').create(dados, { requestKey: null })
+          criados++
+          return
+        } catch (err) {
+          const status =
+            typeof err === 'object' && err !== null && 'status' in err
+              ? Number((err as { status: number }).status)
+              : 0
+          // erro de validação (400–428) não melhora com nova tentativa
+          const definitivo = status >= 400 && status < 429
+          if (tentativa >= 2 || definitivo) {
+            const msg =
+              typeof err === 'object' && err !== null && 'message' in err
+                ? String((err as { message: string }).message)
+                : 'Erro desconhecido.'
+            falhas.push({ linha: l.linha, motivo: msg, dados: [l.nome, l.empresa, l.contato] })
+            return
+          }
+          await esperar(status === 429 ? 1000 : 300)
+        }
+      }
     }
+
+    const trabalhador = async () => {
+      while (proximo < linhas.length) {
+        const l = linhas[proximo++]
+        await criarUm(l)
+        done++
+        if (onProgress && (done % 25 === 0 || done === linhas.length)) {
+          onProgress(done, linhas.length)
+        }
+      }
+    }
+
+    await Promise.all(
+      Array.from({ length: Math.min(CRIACOES_SIMULTANEAS, linhas.length) }, () => trabalhador()),
+    )
     if (onProgress) onProgress(linhas.length, linhas.length)
-    return { criados: criados.length, falhas }
+    return { criados, falhas }
   },
 }
 

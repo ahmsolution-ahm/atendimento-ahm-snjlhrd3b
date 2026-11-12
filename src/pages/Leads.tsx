@@ -8,8 +8,8 @@ import {
   parseCsvFile,
   mapearCabecalhos,
   validarLinhas,
-  detectarDuplicadasNoArquivo,
-  chaveDuplicidade,
+  selecionarNovos,
+  mensagemImportacao,
 } from '@/lib/csvImport'
 import { useToast } from '@/hooks/use-toast'
 import {
@@ -246,30 +246,32 @@ export default function Leads() {
         return
       }
       const { validas, invalidas } = validarLinhas(rows, mapa)
-      const duplicadasNoArquivo = detectarDuplicadasNoArquivo(validas)
       // Bloco 4: duplicidades contra a BASE COMPLETA (antes: só os 20 leads da página visível).
-      // Consulta em lote no servidor; se falhar, a prévia segue com aviso (nada é gravado aqui).
-      let duplicadasNaBase: typeof validas = []
+      // Bloco 5: só os NOVOS serão gravados. Sem a verificação da base, a importação fica
+      // bloqueada — gravar sem verificar é o caminho que já gerou duplicados em massa.
+      let chavesBase = new Set<string>()
+      let verificacaoBase = true
       try {
-        const chavesBase = await leadsService.chavesExistentesNaBase(validas)
-        duplicadasNaBase = validas.filter((l) =>
-          chavesBase.has(chaveDuplicidade(l.contato, l.empresa)),
-        )
+        chavesBase = await leadsService.chavesExistentesNaBase(validas)
       } catch (_) {
+        verificacaoBase = false
         toast({
           title: 'Duplicidades não verificadas',
           description:
-            'Não foi possível comparar o arquivo com a base de leads. Revise a prévia com atenção antes de importar.',
+            'Não foi possível comparar o arquivo com a base de leads. A importação foi bloqueada para não gravar duplicados. Tente novamente.',
           variant: 'destructive',
         })
       }
+      const selecao = selecionarNovos(validas, chavesBase)
       setImportFileName(file.name)
       setImportPreview({
         total: rows.length,
         validas,
         invalidas,
-        duplicadasNoArquivo,
-        duplicadasNaBase,
+        duplicadasNoArquivo: selecao.duplicadasNoArquivo,
+        duplicadasNaBase: selecao.duplicadasNaBase,
+        novos: verificacaoBase ? selecao.novos : [],
+        verificacaoBase,
         cabecalhos,
       })
     } catch (err) {
@@ -286,15 +288,19 @@ export default function Leads() {
     }
   }
 
-  // F1-T05: confirmar importação — grava só as válidas
+  // F1-T05: confirmar importação — Bloco 5: grava SOMENTE os leads novos (duplicados da base
+  // e repetidos no arquivo são ignorados, sem requisição de criação), em paralelo.
   const handleConfirmImport = async () => {
-    if (!importPreview) return
+    if (!importPreview || !importPreview.verificacaoBase) return
+    const novos = importPreview.novos
+    const ignorados =
+      importPreview.duplicadasNaBase.length + importPreview.duplicadasNoArquivo.length
     setImporting(true)
-    setImportProgress({ done: 0, total: importPreview.validas.length })
+    setImportProgress({ done: 0, total: novos.length })
     try {
       const produtoPorNome = new Map(produtos.map((p) => [p.nome.toLowerCase(), p.id]))
       const result = await leadsService.importarLote(
-        importPreview.validas,
+        novos,
         produtoPorNome,
         user?.id,
         (done, total) => setImportProgress({ done, total }),
@@ -304,7 +310,8 @@ export default function Leads() {
       loadData()
       toast({
         title: 'Importação concluída',
-        description: `${result.criados} ${result.criados === 1 ? 'lead criado' : 'leads criados'}${result.falhas.length ? `, ${result.falhas.length} ${result.falhas.length === 1 ? 'falhou' : 'falharam'}` : ''}.`,
+        description: mensagemImportacao(result.criados, ignorados, result.falhas.length),
+        variant: result.falhas.length > 0 ? 'destructive' : undefined,
       })
     } catch (err) {
       toast({
@@ -1088,7 +1095,8 @@ export default function Leads() {
               Prévia da importação — {importFileName}
             </DialogTitle>
             <DialogDescription className="text-xs text-[#6B7280]">
-              Nada foi gravado ainda. Confirme abaixo para criar os leads válidos.
+              Nada foi gravado ainda. A importação grava somente os leads novos; os duplicados são
+              ignorados.
             </DialogDescription>
           </DialogHeader>
 
@@ -1101,10 +1109,10 @@ export default function Leads() {
             </div>
             <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-center">
               <div className="text-lg font-extrabold text-[#059669]">
-                {importPreview?.validas.length}
+                {importPreview?.novos.length}
               </div>
               <div className="text-[10px] uppercase tracking-wider text-[#059669] font-semibold">
-                Válidas
+                Novos
               </div>
             </div>
             <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-center">
@@ -1164,21 +1172,32 @@ export default function Leads() {
               <div className="mt-3 p-3 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-[#92400E] flex items-start gap-2">
                 <Copy className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                 <div>
-                  <strong>Possíveis duplicidades:</strong>{' '}
+                  <strong>Duplicidades:</strong>{' '}
                   {importPreview.duplicadasNaBase.length > 0 &&
-                    `${importPreview.duplicadasNaBase.length === 1 ? '1 já existe na base' : `${importPreview.duplicadasNaBase.length} já existem na base`} (mesmo contato+empresa)`}
+                    `${importPreview.duplicadasNaBase.length === 1 ? '1 já existe na base' : `${importPreview.duplicadasNaBase.length.toLocaleString('pt-BR')} já existem na base`} (mesmo contato e empresa)`}
                   {importPreview.duplicadasNaBase.length > 0 &&
                     importPreview.duplicadasNoArquivo.length > 0 &&
                     ' · '}
                   {importPreview.duplicadasNoArquivo.length > 0 &&
-                    `${importPreview.duplicadasNoArquivo.length} repetidas dentro do próprio arquivo`}
-                  . Elas serão criadas mesmo assim — revise a lista se necessário.
+                    `${importPreview.duplicadasNoArquivo.length === 1 ? '1 repetida' : `${importPreview.duplicadasNoArquivo.length.toLocaleString('pt-BR')} repetidas`} dentro do próprio arquivo`}
+                  . A importação gravará somente os leads novos. Os duplicados serão ignorados.
                 </div>
               </div>
             )}
 
+          {importPreview && !importPreview.verificacaoBase && (
+            <div className="mt-3 p-3 rounded-xl bg-red-50 border border-red-200 text-[11px] text-[#991B1B] flex items-start gap-2">
+              <XCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+              <div>
+                <strong>Importação bloqueada:</strong> não foi possível verificar quais leads já
+                existem na base. Para não gravar duplicados, feche esta prévia e selecione o arquivo
+                novamente.
+              </div>
+            </div>
+          )}
+
           {importPreview &&
-            importPreview.validas.some((l) => !(l.nome && l.empresa && l.contato)) && (
+            importPreview.novos.some((l) => !(l.nome && l.empresa && l.contato)) && (
               <div className="mt-3 p-3 rounded-xl bg-blue-50 border border-blue-200 text-[11px] text-[#1E40AF] flex items-start gap-2">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                 <div>
@@ -1200,13 +1219,20 @@ export default function Leads() {
             <button
               type="button"
               onClick={handleConfirmImport}
-              disabled={importing || !importPreview || importPreview.validas.length === 0}
+              disabled={
+                importing ||
+                !importPreview ||
+                !importPreview.verificacaoBase ||
+                importPreview.novos.length === 0
+              }
               className="px-5 py-2 rounded-xl text-xs font-semibold text-white shadow-md disabled:opacity-50"
               style={{ backgroundColor: '#DE6464' }}
             >
               {importing
-                ? `Importando... ${importProgress.done}/${importProgress.total}`
-                : `Confirmar importação (${importPreview?.validas.length || 0} ${importPreview?.validas.length === 1 ? 'lead' : 'leads'})`}
+                ? `Importando… ${importProgress.done.toLocaleString('pt-BR')} de ${importProgress.total.toLocaleString('pt-BR')}`
+                : importPreview && importPreview.novos.length === 0
+                  ? 'Nenhum lead novo para importar'
+                  : `Importar ${importPreview?.novos.length === 1 ? '1 lead novo' : `${(importPreview?.novos.length || 0).toLocaleString('pt-BR')} leads novos`}`}
             </button>
           </div>
         </DialogContent>

@@ -29,6 +29,9 @@ export interface PreviaImportacao {
   invalidas: LinhaInvalida[]
   duplicadasNoArquivo: CsvLeadRow[]
   duplicadasNaBase: CsvLeadRow[]
+  // Bloco 5: só os novos são gravados; sem verificação da base, a importação fica bloqueada
+  novos: CsvLeadRow[]
+  verificacaoBase: boolean
   cabecalhos: string[]
 }
 
@@ -228,9 +231,67 @@ export function validarLinhas(
 }
 
 // chave de duplicidade (contato + empresa, sem diferenciar maiúsculas/espaços nas pontas) —
-// a mesma usada no arquivo e na comparação com a base
-export function chaveDuplicidade(contato: string, empresa: string): string {
-  return `${(contato || '').trim().toLowerCase()}|${(empresa || '').trim().toLowerCase()}`
+// a mesma usada no arquivo e na comparação com a base.
+// Bloco 5: linha SEM contato usa nome + empresa (senão um rascunho sem e-mail seria
+// gravado de novo a cada reimportação da mesma base).
+export function chaveDuplicidade(contato: string, empresa: string, nome: string = ''): string {
+  const c = (contato || '').trim().toLowerCase()
+  const e = (empresa || '').trim().toLowerCase()
+  if (c) return `${c}|${e}`
+  return `nome:${(nome || '').trim().toLowerCase()}|${e}`
+}
+
+export interface SelecaoImportacao {
+  novos: CsvLeadRow[]
+  duplicadasNaBase: CsvLeadRow[]
+  duplicadasNoArquivo: CsvLeadRow[]
+}
+
+/**
+ * Bloco 5: separa o que será gravado. Já existe na base → ignorada; repetida dentro do
+ * arquivo → a primeira ocorrência grava, as seguintes são ignoradas. Toda linha válida cai
+ * em exatamente um dos três grupos (novos + duplicadas = válidas).
+ */
+export function selecionarNovos(validas: CsvLeadRow[], chavesBase: Set<string>): SelecaoImportacao {
+  const vistas = new Set<string>()
+  const r: SelecaoImportacao = { novos: [], duplicadasNaBase: [], duplicadasNoArquivo: [] }
+  for (const l of validas) {
+    const k = chaveDuplicidade(l.contato, l.empresa, l.nome)
+    if (chavesBase.has(k)) r.duplicadasNaBase.push(l)
+    else if (vistas.has(k)) r.duplicadasNoArquivo.push(l)
+    else {
+      vistas.add(k)
+      r.novos.push(l)
+    }
+  }
+  return r
+}
+
+// Bloco 5: relatório final da importação, com plural correto
+export function mensagemImportacao(criados: number, ignorados: number, falhas: number): string {
+  const partes: string[] = []
+  partes.push(
+    criados === 0
+      ? 'Nenhum lead novo importado.'
+      : criados === 1
+        ? '1 novo lead importado.'
+        : `${criados.toLocaleString('pt-BR')} novos leads importados.`,
+  )
+  if (ignorados > 0) {
+    partes.push(
+      ignorados === 1
+        ? '1 já existente foi ignorado.'
+        : `${ignorados.toLocaleString('pt-BR')} já existentes foram ignorados.`,
+    )
+  }
+  if (falhas > 0) {
+    partes.push(
+      falhas === 1
+        ? '1 não importado por erro.'
+        : `${falhas.toLocaleString('pt-BR')} não importados por erro.`,
+    )
+  }
+  return partes.join(' ')
 }
 
 // Bloco 4: telefone do lead — usa o telefone principal; se não houver, o celular
@@ -242,7 +303,7 @@ export function detectarDuplicadasNoArquivo(validas: CsvLeadRow[]): CsvLeadRow[]
   const seen = new Map<string, CsvLeadRow>()
   const dups: CsvLeadRow[] = []
   for (const l of validas) {
-    const key = chaveDuplicidade(l.contato, l.empresa)
+    const key = chaveDuplicidade(l.contato, l.empresa, l.nome)
     if (seen.has(key)) dups.push(l)
     else seen.set(key, l)
   }
