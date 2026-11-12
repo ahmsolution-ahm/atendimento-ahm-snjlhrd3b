@@ -10,12 +10,7 @@
 // Aprovada / Rejeitada / Em revisão registra decidido_em/decidido_por com quem fez a
 // chamada. Cada nova decisão sobrescreve a anterior (registra a ÚLTIMA decisão; o
 // histórico textual fica acumulado em comentario).
-
-const comentarioNovo = (r) => {
-  const atual = r.getString('comentario').trim()
-  const anterior = r.original().getString('comentario').trim()
-  return atual !== '' && atual !== anterior
-}
+// Obs.: toda a lógica fica DENTRO dos callbacks (o JSVM não enxerga funções de topo).
 
 onRecordUpdate((e) => {
   const r = e.record
@@ -23,14 +18,16 @@ onRecordUpdate((e) => {
   const statusAnterior = r.original().getString('status')
 
   if (status !== statusAnterior) {
+    const atual = r.getString('comentario').trim()
+    const comentarioNovo = atual !== '' && atual !== r.original().getString('comentario').trim()
     // RN-1.14: rejeição sem motivo é bloqueada
-    if (status === 'Rejeitada' && !comentarioNovo(r)) {
+    if (status === 'Rejeitada' && !comentarioNovo) {
       throw new BadRequestError(
         'Não é possível rejeitar a oportunidade sem informar o motivo. Registre o motivo da rejeição e tente novamente.',
       )
     }
     // rollback auditável: aprovada só volta para revisão com justificativa
-    if (statusAnterior === 'Aprovada' && status === 'Em revisão' && !comentarioNovo(r)) {
+    if (statusAnterior === 'Aprovada' && status === 'Em revisão' && !comentarioNovo) {
       throw new BadRequestError(
         'Para voltar uma oportunidade aprovada para revisão, informe a justificativa da mudança.',
       )
