@@ -374,7 +374,15 @@ export default function Oportunidades() {
                   <p className="text-muted-foreground">
                     {itemSelecionado.expand.lead.nome} está{' '}
                     <span className="font-semibold text-[#030507]">
-                      {itemSelecionado.expand.lead.status}
+                      {itemSelecionado.expand.lead.status === 'pendente'
+                        ? 'Pendente'
+                        : itemSelecionado.expand.lead.status === 'qualificado'
+                          ? 'Qualificado'
+                          : itemSelecionado.expand.lead.status === 'transbordo'
+                            ? 'Transbordo'
+                            : itemSelecionado.expand.lead.status === 'fora do recorte'
+                              ? 'Fora do recorte'
+                              : itemSelecionado.expand.lead.status}
                     </span>
                   </p>
                 ) : (
