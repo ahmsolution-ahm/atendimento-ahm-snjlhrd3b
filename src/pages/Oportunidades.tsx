@@ -24,7 +24,7 @@ import {
   PaginationPrevious,
   PaginationNext,
 } from '@/components/ui/pagination'
-import { Target } from 'lucide-react'
+import { Target, Mail } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { oportunidadesService } from '@/services/oportunidades'
 import type { OportunidadeRecord } from '@/types'
@@ -113,11 +113,11 @@ export default function Oportunidades() {
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Target className="w-6 h-6" />
-          Fila de Oportunidades
+          Oportunidades
         </h1>
         <p className="text-sm text-muted-foreground">
-          Oportunidades sugeridas a partir de leads qualificados (SPEC 1.5 — RN-1.13). Decisões
-          humanas (aprovar/rejeitar/revisar) entram na F1-T14.
+          Sugestões geradas automaticamente a partir de leads qualificados — prontas para sua
+          decisão.
         </p>
       </div>
 
@@ -184,8 +184,8 @@ export default function Oportunidades() {
         <CardContent>
           {itens.length === 0 && !carregando ? (
             <div className="py-12 text-center text-sm text-muted-foreground">
-              Nenhuma oportunidade na fila. Leads qualificados geram oportunidades automaticamente
-              (RN-1.13).
+              Nenhuma oportunidade por enquanto. Quando um lead for qualificado, a sugestão aparece
+              aqui automaticamente para você decidir.
             </div>
           ) : (
             <Table>
@@ -270,11 +270,10 @@ export default function Oportunidades() {
           {itemSelecionado && (
             <div className="space-y-4">
               <div className="rounded-lg bg-muted p-3 text-sm">
-                <p className="font-medium mb-1">Justificativa da sugestão</p>
+                <p className="font-medium mb-1">Por que esta oportunidade foi sugerida</p>
                 <p className="text-muted-foreground">{itemSelecionado.justificativa}</p>
                 <div className="mt-2">{confiancaBadge(itemSelecionado.confianca)}</div>
               </div>
-
               {/* AP-2026-11-11-0600: situação do lead visível onde o usuário está */}
               <div className="rounded-lg bg-muted p-3 text-sm">
                 <p className="font-medium mb-1">Situação do lead</p>
@@ -289,7 +288,32 @@ export default function Oportunidades() {
                   <p className="text-muted-foreground">lead não disponível</p>
                 )}
               </div>
-
+              {/* Contato do lead — o executivo precisa ver com quem falar (F1-T13 correção) */}
+              {itemSelecionado.expand?.lead && (
+                <div className="rounded-lg border border-[#E5E7EB] bg-white p-3 text-sm">
+                  <p className="font-medium mb-1.5">Contato</p>
+                  <div className="space-y-1 text-[#374151]">
+                    {itemSelecionado.expand.lead.contato && (
+                      <p className="flex items-center gap-2">
+                        <Mail className="w-3.5 h-3.5 text-[#DE6464]" />
+                        {itemSelecionado.expand.lead.contato}
+                      </p>
+                    )}
+                    {itemSelecionado.expand.lead.observacoes && (
+                      <p className="text-xs text-muted-foreground">
+                        {itemSelecionado.expand.lead.observacoes}
+                      </p>
+                    )}
+                    {!itemSelecionado.expand.lead.contato &&
+                      !itemSelecionado.expand.lead.observacoes && (
+                        <p className="text-muted-foreground">
+                          Nenhum contato registrado neste lead
+                        </p>
+                      )}
+                  </div>
+                </div>
+              )}
+              =======
               <div className="flex justify-end">
                 <Button variant="outline" onClick={() => setItemSelecionado(null)}>
                   Fechar
