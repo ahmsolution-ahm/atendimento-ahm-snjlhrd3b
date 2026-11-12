@@ -5,6 +5,10 @@
 // RN-1.9: produto fora do recorte piloto → fora do recorte
 // RN-1.10: sinal técnico complexo → transbordo (estado aqui; fila na F1-T10)
 // Nota: "dor compatível" nesta fase = dor preenchida (calibração com uso real, como a SPEC prevê).
+//
+// REGRA DE LINGUAGEM (Afonso, 12/11/2026): textos exibidos ao usuário são português do
+// Brasil corporativo — iniciam com maiúscula, sem códigos internos (RN-x.x, SPEC x.x).
+// Códigos de regra vivem apenas em comentários e documentação.
 
 export interface ProdutoQualificacao {
   id: string
@@ -61,10 +65,10 @@ export function qualificar(
 
   // RN-1.6 (reforço): sem produto de interesse → pendente
   if (!produto) {
-    pendencias.push('produto de interesse não selecionado')
+    pendencias.push('Produto de interesse não selecionado')
     return {
       status: 'pendente',
-      motivos: ['lead sem produto de interesse — qualificação não pode prosseguir (RN-1.6)'],
+      motivos: ['Lead sem produto de interesse — a qualificação não pode prosseguir.'],
       pendencias,
     }
   }
@@ -74,9 +78,9 @@ export function qualificar(
     return {
       status: 'pendente',
       motivos: [
-        `produto "${produto.nome}" não está ativo no catálogo — selecione um produto ativo`,
+        `O produto "${produto.nome}" não está ativo no catálogo. Selecione um produto ativo.`,
       ],
-      pendencias: ['produto ativo para qualificar'],
+      pendencias: ['Produto ativo para qualificar'],
     }
   }
 
@@ -85,7 +89,7 @@ export function qualificar(
     return {
       status: 'fora do recorte',
       motivos: [
-        `produto "${produto.nome}" é de alta complexidade — fora do recorte piloto da Fase 1 (RN-1.9); segue visível para análise`,
+        `O produto "${produto.nome}" é de alta complexidade e está fora do escopo piloto da Fase 1. Permanece visível para análise.`,
       ],
       pendencias: [],
     }
@@ -98,31 +102,28 @@ export function qualificar(
     return {
       status: 'transbordo',
       motivos: [
-        `dor menciona sinal técnico complexo ("${sinalComplexo}") — exige especialista (RN-1.10)`,
-        `produto: ${produto.nome}`,
+        `A necessidade descrita indica complexidade técnica ("${sinalComplexo}") e exige avaliação de um especialista.`,
+        `Produto: ${produto.nome}`,
       ],
       pendencias: [],
     }
   }
 
   // RN-1.7: produto ativo + dor + urgência → qualificado
-  if (!lead.dor || !lead.dor.trim()) pendencias.push('dor / necessidade não informada')
-  if (!lead.urgencia || !lead.urgencia.trim()) pendencias.push('urgência não informada')
+  if (!lead.dor || !lead.dor.trim()) pendencias.push('Dor / necessidade não informada')
+  if (!lead.urgencia || !lead.urgencia.trim()) pendencias.push('Urgência não informada')
 
   if (pendencias.length > 0) {
     return {
       status: 'pendente',
-      motivos: [
-        `produto ativo: ${produto.nome}`,
-        'faltam respostas obrigatórias para qualificar (RN-1.8)',
-      ],
+      motivos: [`Produto ativo: ${produto.nome}`, 'Faltam respostas obrigatórias para qualificar.'],
       pendencias,
     }
   }
 
-  motivos.push(`produto ativo: ${produto.nome}`)
-  motivos.push('dor informada — sinal de necessidade (RN-1.7)')
-  motivos.push(`urgência ${lead.urgencia}`)
+  motivos.push(`Produto ativo: ${produto.nome}`)
+  motivos.push('Dor informada — sinal de necessidade.')
+  motivos.push(`Urgência: ${lead.urgencia}`)
   return { status: 'qualificado', motivos, pendencias: [] }
 }
 

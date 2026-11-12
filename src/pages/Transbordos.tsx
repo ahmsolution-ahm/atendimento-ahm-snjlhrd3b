@@ -189,7 +189,7 @@ export default function Transbordos() {
           Fila de Transbordo
         </h1>
         <p className="text-sm text-muted-foreground">
-          Casos técnicos complexos que exigem um especialista (SPEC 1.4 — RN-1.11/RN-1.12).
+          Casos técnicos complexos encaminhados para avaliação de um especialista.
         </p>
       </div>
 
@@ -283,7 +283,7 @@ export default function Transbordos() {
                     <TableCell>
                       {item.expand?.especialista?.name ||
                         item.expand?.especialista?.email ||
-                        '— sem especialista —'}
+                        'Sem especialista atribuído'}
                     </TableCell>
                     <TableCell>{statusBadge(item.status)}</TableCell>
                     <TableCell>
@@ -375,7 +375,7 @@ export default function Transbordos() {
                           {itemSelecionado.expand.lead.status}
                         </span>
                         {itemSelecionado.expand.lead.status === 'pendente' &&
-                          ' — devolvido para qualificação (RN-1.12); requalifique em Leads'}
+                          ' — devolvido para nova qualificação. Requalifique na tela Leads.'}
                       </p>
                     ) : (
                       <p className="text-muted-foreground">lead não disponível</p>
@@ -424,7 +424,7 @@ export default function Transbordos() {
 
                   {/* Resolução */}
                   <div className="space-y-1.5">
-                    <Label>Resolução (obrigatória para fechar — RN-1.12)</Label>
+                    <Label>Resolução do especialista (obrigatória para fechar)</Label>
                     <Textarea
                       value={resolucao}
                       onChange={(e) => setResolucao(e.target.value)}

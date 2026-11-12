@@ -13,7 +13,9 @@ onRecordAfterUpdateSuccess((e) => {
 
   const leadId = r.id
   const produtoId = r.getString('produto_interesse')
-  const justificativa = r.getString('qualificacao_resultado') || 'lead qualificado (RN-1.7)'
+  const justificativa =
+    r.getString('qualificacao_resultado') ||
+    'Lead qualificado: produto ativo, necessidade e urgência confirmadas.'
   const urgencia = r.getString('urgencia')
   const confianca = urgencia === 'Alta' ? 'alta' : urgencia === 'Média' ? 'média' : 'baixa'
 

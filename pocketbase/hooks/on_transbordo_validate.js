@@ -8,7 +8,7 @@ onRecordCreate((e) => {
   const r = e.record
   if (r.getString('motivo').trim() === '') {
     throw new BadRequestError(
-      'Transbordo sem motivo não é permitido (RN-1.11): registre o que exige o especialista.',
+      'O transbordo exige um motivo: registre o que precisa ser avaliado pelo especialista.',
     )
   }
   if (r.getString('status') === '') {
@@ -23,7 +23,7 @@ onRecordUpdate((e) => {
   // RN-1.12: resolução vazia não fecha o transbordo (validação de dados, vale para qualquer origem)
   if (r.getString('status') === 'Resolvido' && r.getString('resolucao').trim() === '') {
     throw new BadRequestError(
-      'Resolução vazia não fecha o transbordo (RN-1.12): registre a resposta do especialista antes de resolver.',
+      'Não é possível fechar o transbordo sem a resolução: registre a resposta do especialista antes de concluir.',
     )
   }
   // reabrir (rollback): volta para Aberto — permitido, histórico preservado nos campos
@@ -65,9 +65,9 @@ onRecordAfterUpdateSuccess((e) => {
       lead.set('status', 'pendente')
       lead.set(
         'qualificacao_resultado',
-        `resolução de transbordo (especialista): ${resumo} — lead devolvido para qualificação (RN-1.12)`,
+        `Resolução do especialista: ${resumo} — Lead devolvido para nova qualificação.`,
       )
-      lead.set('qualificacao_pendencias', ['requalificar após resolução do transbordo'])
+      lead.set('qualificacao_pendencias', ['Requalificar após a resolução do transbordo'])
       $app.save(lead)
     }
   } catch (err) {

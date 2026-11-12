@@ -1186,8 +1186,8 @@ export default function Leads() {
             </div>
             <DialogTitle className="text-lg font-bold text-[#030507]">Novo Lead</DialogTitle>
             <DialogDescription className="text-xs text-[#6B7280]">
-              Cadastro manual de lead — nome, empresa e contato são obrigatórios (RN-1.4). Sem
-              produto de interesse, o lead entra como pendente (RN-1.6).
+              Preencha os dados do lead. Nome, empresa e contato são obrigatórios; sem produto de
+              interesse, o lead entra como pendente.
             </DialogDescription>
           </DialogHeader>
 

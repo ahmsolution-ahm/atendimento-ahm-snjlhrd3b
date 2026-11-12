@@ -17,7 +17,7 @@ onRecordUpdate((e) => {
   const estadosQualificacao = ['qualificado', 'fora do recorte', 'transbordo']
   if (estadosQualificacao.includes(status) && resultado === '') {
     throw new BadRequestError(
-      'Qualificação sem justificativa não é permitida (SPEC 1.3): o resultado precisa ser auditável.',
+      'A qualificação exige um registro do resultado: informe a justificativa para manter o histórico auditável.',
     )
   }
 
@@ -33,7 +33,7 @@ onRecordUpdate((e) => {
     const produtoId = r.getString('produto_interesse')
     if (produtoId === '') {
       throw new BadRequestError(
-        'Lead sem produto de interesse não pode ser qualificado (RN-1.6). Selecione um produto ativo ou mantenha o lead como pendente.',
+        'O lead não pode ser qualificado sem um produto de interesse. Selecione um produto ativo ou mantenha o lead como pendente.',
       )
     }
     let produto = null
@@ -67,7 +67,7 @@ onRecordUpdate((e) => {
         produtoNome = ''
       }
     }
-    const motivo = r.getString('qualificacao_resultado') || 'dúvida técnica exige especialista'
+    const motivo = r.getString('qualificacao_resultado') || 'Avaliação técnica exige especialista.'
     const jaExiste = (() => {
       try {
         $app.findFirstRecordByFilter('transbordos', "lead = {:lead} && status != 'Resolvido'", {
@@ -88,7 +88,7 @@ onRecordUpdate((e) => {
       item.set('status', especialistaId !== '' ? 'Aberto' : 'Pendente atribuição')
       item.set(
         'comentario',
-        `produto: ${produtoNome || 'não informado'} — criado pela qualificação`,
+        `Produto: ${produtoNome || 'não informado'} — criado automaticamente pela qualificação.`,
       )
       $app.save(item)
     }
