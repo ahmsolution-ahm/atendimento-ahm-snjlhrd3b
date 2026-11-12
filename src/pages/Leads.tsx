@@ -603,7 +603,9 @@ export default function Leads() {
             <Inbox className="w-7 h-7" strokeWidth={1.5} />
           </div>
           <h2 className="text-sm font-bold text-[#030507] mb-1">
-            {leads.length === 0 ? 'Nenhum lead cadastrado' : 'Nenhum lead encontrado'}
+            {searchAplicada || statusFilter !== 'Todos'
+              ? 'Nenhum lead encontrado para os filtros aplicados. Ajuste a busca ou o status.'
+              : 'Nenhum lead cadastrado. Cadastre o primeiro lead ou importe sua base.'}
           </h2>
           <p className="text-xs text-[#6B7280] max-w-sm">
             {leads.length === 0
