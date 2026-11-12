@@ -1,6 +1,12 @@
 import pb from '@/lib/pocketbase/client'
 import type { LeadRecord } from '@/types'
 import type { CsvLeadRow, LinhaInvalida } from '@/lib/csvImport'
+import { chaveDuplicidade, telefoneDaLinha } from '@/lib/csvImport'
+
+// Bloco 4: verificação de duplicidade da importação contra a BASE COMPLETA
+const LOTE_CONTATOS = 30 // contatos por consulta (expressão de filtro com OR)
+const LIMITE_POR_LOTES = 300 // acima disso, varre a base em páginas leves (só 2 campos)
+const PAGINA_VARREDURA = 1000
 
 export interface ImportPreview {
   total: number
@@ -206,6 +212,67 @@ export const leadsService = {
     }
   },
 
+  /**
+   * Bloco 4: chaves (contato|empresa) do arquivo que JÁ existem na base inteira — não só na
+   * página visível. Poucas requisições em lote, sem uma requisição por linha:
+   *  - até 300 contatos distintos: consultas de 30 contatos por vez (no máximo 10);
+   *  - acima disso: varredura paginada da base trazendo só contato e empresa
+   *    (~16 páginas de 1.000 para 15 mil leads), sem carregar registros completos.
+   * A comparação final é exata (contato + empresa, sem diferenciar maiúsculas).
+   */
+  async chavesExistentesNaBase(
+    linhas: Pick<CsvLeadRow, 'contato' | 'empresa'>[],
+  ): Promise<Set<string>> {
+    const chavesArquivo = new Set(
+      linhas.filter((l) => l.contato.trim()).map((l) => chaveDuplicidade(l.contato, l.empresa)),
+    )
+    const existentes = new Set<string>()
+    if (chavesArquivo.size === 0) return existentes
+
+    const registrar = (itens: { contato?: string; empresa?: string }[]) => {
+      for (const it of itens) {
+        const k = chaveDuplicidade(it.contato || '', it.empresa || '')
+        if (chavesArquivo.has(k)) existentes.add(k)
+      }
+    }
+
+    const contatos = [...new Set(linhas.map((l) => l.contato.trim().toLowerCase()).filter(Boolean))]
+
+    if (contatos.length <= LIMITE_POR_LOTES) {
+      const lotes: string[][] = []
+      for (let i = 0; i < contatos.length; i += LOTE_CONTATOS) {
+        lotes.push(contatos.slice(i, i + LOTE_CONTATOS))
+      }
+      await Promise.all(
+        lotes.map(async (lote) => {
+          // "~" compara sem diferenciar maiúsculas; o filtro exato é feito em registrar()
+          const filter = lote.map((c) => pb.filter('contato ~ {:c}', { c })).join(' || ')
+          for (let pagina = 1; ; pagina++) {
+            const r = await pb.collection('leads').getList<LeadRecord>(pagina, 500, {
+              filter,
+              fields: 'contato,empresa',
+              skipTotal: true,
+            })
+            registrar(r.items)
+            if (r.items.length < 500) break
+          }
+        }),
+      )
+      return existentes
+    }
+
+    for (let pagina = 1; ; pagina++) {
+      const r = await pb.collection('leads').getList<LeadRecord>(pagina, PAGINA_VARREDURA, {
+        fields: 'contato,empresa',
+        sort: 'id',
+        skipTotal: true,
+      })
+      registrar(r.items)
+      if (r.items.length < PAGINA_VARREDURA) break
+    }
+    return existentes
+  },
+
   // F1-T05: importação em lote — cria as linhas válidas uma a uma e reporta falhas por linha.
   // RN-1.4: linha sem nome+empresa+contato vai como rascunho (incompleto=true); RN-1.6 aplica pendente via hook.
   async importarLote(
@@ -223,20 +290,21 @@ export const leadsService = {
           ? produtoPorNome.get(l.produto_interesse.trim().toLowerCase())
           : undefined
         const completo = !!(l.nome && l.empresa && l.contato)
+        // Bloco 4: telefone vai para o campo próprio (principal; na falta dele, o celular).
+        // Se houver os dois, o celular fica registrado nas observações.
+        const telefone = telefoneDaLinha(l)
+        const celularExtra = l.telefone && l.celular && l.celular !== l.telefone ? l.celular : ''
         await pb.collection('leads').create({
           nome: l.nome || '',
           empresa: l.empresa || '',
           contato: l.contato || '',
+          telefone,
           origem: l.origem || 'Importação CSV',
           produto_interesse: produtoId,
           dor: l.dor,
           urgencia: l.urgencia,
           observacoes:
-            [
-              l.cargo ? `Cargo: ${l.cargo}` : '',
-              l.telefone ? `Tel: ${l.telefone}` : '',
-              l.celular ? `Cel: ${l.celular}` : '',
-            ]
+            [l.cargo ? `Cargo: ${l.cargo}` : '', celularExtra ? `Celular: ${celularExtra}` : '']
               .filter(Boolean)
               .join(' · ') || undefined,
           responsavel,
@@ -263,6 +331,7 @@ export interface LeadInput {
   nome: string
   empresa: string
   contato: string
+  telefone?: string
   origem?: string
   produto_interesse?: string
   dor?: string

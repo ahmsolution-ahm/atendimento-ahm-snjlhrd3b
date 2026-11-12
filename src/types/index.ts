@@ -154,6 +154,7 @@ export interface LeadRecord extends RecordModel {
   nome: string
   empresa: string
   contato: string
+  telefone?: string
   origem?: string
   produto_interesse?: string
   dor?: string

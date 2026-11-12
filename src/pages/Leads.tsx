@@ -9,6 +9,7 @@ import {
   mapearCabecalhos,
   validarLinhas,
   detectarDuplicadasNoArquivo,
+  chaveDuplicidade,
 } from '@/lib/csvImport'
 import { useToast } from '@/hooks/use-toast'
 import {
@@ -143,6 +144,7 @@ export default function Leads() {
     observacoes: '',
     empresa: '',
     contato: '',
+    telefone: '',
   })
   const [savingEdit, setSavingEdit] = useState(false)
   const [rollbackLead, setRollbackLead] = useState<LeadRecord | null>(null)
@@ -158,6 +160,7 @@ export default function Leads() {
     dor: '',
     urgencia: 'Média' as LeadUrgencia,
     observacoes: '',
+    telefone: '',
   })
 
   // F1-T09/desempenho: carrega UMA página do servidor (20 leads, 1 requisição) + contadores agregados
@@ -244,13 +247,22 @@ export default function Leads() {
       }
       const { validas, invalidas } = validarLinhas(rows, mapa)
       const duplicadasNoArquivo = detectarDuplicadasNoArquivo(validas)
-      // duplicidades na base: compara contato+empresa dos leads existentes
-      const chavesBase = new Set(
-        leads.map((l) => `${(l.contato || '').toLowerCase()}|${(l.empresa || '').toLowerCase()}`),
-      )
-      const duplicadasNaBase = validas.filter((l) =>
-        chavesBase.has(`${l.contato.toLowerCase()}|${l.empresa.toLowerCase()}`),
-      )
+      // Bloco 4: duplicidades contra a BASE COMPLETA (antes: só os 20 leads da página visível).
+      // Consulta em lote no servidor; se falhar, a prévia segue com aviso (nada é gravado aqui).
+      let duplicadasNaBase: typeof validas = []
+      try {
+        const chavesBase = await leadsService.chavesExistentesNaBase(validas)
+        duplicadasNaBase = validas.filter((l) =>
+          chavesBase.has(chaveDuplicidade(l.contato, l.empresa)),
+        )
+      } catch (_) {
+        toast({
+          title: 'Duplicidades não verificadas',
+          description:
+            'Não foi possível comparar o arquivo com a base de leads. Revise a prévia com atenção antes de importar.',
+          variant: 'destructive',
+        })
+      }
       setImportFileName(file.name)
       setImportPreview({
         total: rows.length,
@@ -346,6 +358,7 @@ export default function Leads() {
       observacoes: lead.observacoes || '',
       empresa: lead.empresa || '',
       contato: lead.contato || '',
+      telefone: lead.telefone || '',
     })
   }
 
@@ -364,6 +377,7 @@ export default function Leads() {
         observacoes: editForm.observacoes,
         empresa: editForm.empresa,
         contato: editForm.contato,
+        telefone: editForm.telefone,
       })
       setEditLead(null)
       if (requalificar) {
@@ -446,6 +460,7 @@ export default function Leads() {
         dor: form.dor || undefined,
         urgencia: form.urgencia,
         observacoes: form.observacoes || undefined,
+        telefone: form.telefone.trim() || undefined,
         responsavel: user?.id,
         status: 'novo',
       })
@@ -463,6 +478,7 @@ export default function Leads() {
         dor: '',
         urgencia: 'Média',
         observacoes: '',
+        telefone: '',
       })
       setDuplicidade(null)
       setForcarCriacao(false)
@@ -788,6 +804,18 @@ export default function Leads() {
                   className="w-full px-3 py-2.5 rounded-xl border border-[#E5E7EB] text-xs text-[#030507] outline-none focus:border-[#DE6464]"
                 />
               </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-[#030507] mb-1">
+                Telefone
+              </label>
+              <input
+                type="tel"
+                value={editForm.telefone}
+                onChange={(e) => setEditForm({ ...editForm, telefone: e.target.value })}
+                placeholder="(11) 98765-4321"
+                className="w-full px-3 py-2.5 rounded-xl border border-[#E5E7EB] text-xs text-[#030507] outline-none focus:border-[#DE6464]"
+              />
             </div>
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-[#030507] mb-1">
@@ -1246,7 +1274,19 @@ export default function Leads() {
                     setForm({ ...form, contato: v })
                     agendarChecagem(v, form.empresa)
                   }}
-                  placeholder="Telefone ou e-mail"
+                  placeholder="E-mail do contato"
+                  className="w-full px-3 py-2.5 rounded-xl border border-[#E5E7EB] text-xs text-[#030507] outline-none focus:border-[#DE6464]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[#030507] mb-1">
+                  Telefone
+                </label>
+                <input
+                  type="tel"
+                  value={form.telefone}
+                  onChange={(e) => setForm({ ...form, telefone: e.target.value })}
+                  placeholder="(11) 98765-4321"
                   className="w-full px-3 py-2.5 rounded-xl border border-[#E5E7EB] text-xs text-[#030507] outline-none focus:border-[#DE6464]"
                 />
               </div>

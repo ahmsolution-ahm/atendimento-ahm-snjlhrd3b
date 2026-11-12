@@ -26,7 +26,7 @@ import {
   PaginationPrevious,
   PaginationNext,
 } from '@/components/ui/pagination'
-import { Target, Mail, CheckCircle2, XCircle, RotateCcw } from 'lucide-react'
+import { Target, Mail, Phone, CheckCircle2, XCircle, RotateCcw } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { oportunidadesService, type OportunidadesContadores } from '@/services/oportunidades'
 import type { OportunidadeRecord } from '@/types'
@@ -404,12 +404,19 @@ export default function Oportunidades() {
                         {itemSelecionado.expand.lead.contato}
                       </p>
                     )}
+                    {itemSelecionado.expand.lead.telefone && (
+                      <p className="flex items-center gap-2">
+                        <Phone className="w-3.5 h-3.5 text-[#DE6464]" />
+                        {itemSelecionado.expand.lead.telefone}
+                      </p>
+                    )}
                     {itemSelecionado.expand.lead.observacoes && (
                       <p className="text-xs text-muted-foreground">
                         {itemSelecionado.expand.lead.observacoes}
                       </p>
                     )}
                     {!itemSelecionado.expand.lead.contato &&
+                      !itemSelecionado.expand.lead.telefone &&
                       !itemSelecionado.expand.lead.observacoes && (
                         <p className="text-muted-foreground">
                           Nenhum contato registrado neste lead.

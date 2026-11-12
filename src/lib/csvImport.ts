@@ -61,8 +61,14 @@ const HEADER_MAP: Record<string, keyof CsvLeadRow> = {
   'telefone principal': 'telefone',
   telefone: 'telefone',
   telefone_1: 'telefone',
+  'telefone fixo': 'telefone',
+  fone: 'telefone',
+  phone: 'telefone',
+  'phone number': 'telefone',
   celular: 'celular',
   'telefone celular': 'celular',
+  mobile: 'celular',
+  whatsapp: 'celular',
   cargo: 'cargo',
   'cargo / função': 'cargo',
   job: 'cargo',
@@ -221,11 +227,22 @@ export function validarLinhas(
   return { validas, invalidas }
 }
 
+// chave de duplicidade (contato + empresa, sem diferenciar maiúsculas/espaços nas pontas) —
+// a mesma usada no arquivo e na comparação com a base
+export function chaveDuplicidade(contato: string, empresa: string): string {
+  return `${(contato || '').trim().toLowerCase()}|${(empresa || '').trim().toLowerCase()}`
+}
+
+// Bloco 4: telefone do lead — usa o telefone principal; se não houver, o celular
+export function telefoneDaLinha(l: Pick<CsvLeadRow, 'telefone' | 'celular'>): string {
+  return (l.telefone || l.celular || '').trim()
+}
+
 export function detectarDuplicadasNoArquivo(validas: CsvLeadRow[]): CsvLeadRow[] {
   const seen = new Map<string, CsvLeadRow>()
   const dups: CsvLeadRow[] = []
   for (const l of validas) {
-    const key = `${l.contato.toLowerCase()}|${l.empresa.toLowerCase()}`
+    const key = chaveDuplicidade(l.contato, l.empresa)
     if (seen.has(key)) dups.push(l)
     else seen.set(key, l)
   }
