@@ -167,6 +167,7 @@ export interface LeadRecord extends RecordModel {
   qualificado_em?: string
   qualificado_por?: string
   qualificacao_historico?: string
+  qualificacao_origem?: 'manual' | 'automatica' | ''
   expand?: {
     produto_interesse?: ProdutoRecord
     responsavel?: UserRecord

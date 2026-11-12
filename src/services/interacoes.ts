@@ -1,5 +1,9 @@
 import pb from '@/lib/pocketbase/client'
+import { calcularAteProposta } from '@/lib/metricas'
 import type { InteracaoRecord, InteracaoTipo } from '@/types'
+
+// a regra da contagem vive em @/lib/metricas (função pura, coberta por testes automáticos)
+export { calcularAteProposta }
 
 export const TIPOS_INTERACAO: InteracaoTipo[] = [
   'Ligação',
@@ -14,22 +18,6 @@ const EXPAND = 'responsavel,cancelada_por'
 // Volume por lead é baixo na Fase 1: uma página de 200 cobre a timeline inteira
 // (sem getFullList — mesmo padrão de paginação server-side do projeto).
 const LIMITE_POR_LEAD = 200
-
-/**
- * F1-T20 (CA-1-020): nº de interações NÃO canceladas até (inclusive) a que tem proposta.
- * Retorna null quando não há proposta ativa — diferente de "proposta na 1ª interação".
- * Ordem cronológica: data e, em empate (mesmo dia), ordem de registro.
- */
-export function calcularAteProposta(itens: InteracaoRecord[]): number | null {
-  const ativas = itens
-    .filter((i) => !i.cancelada)
-    .sort((a, b) => {
-      const d = a.data.localeCompare(b.data)
-      return d !== 0 ? d : a.created.localeCompare(b.created)
-    })
-  const idx = ativas.findIndex((i) => i.proposta)
-  return idx >= 0 ? idx + 1 : null
-}
 
 export const interacoesService = {
   // timeline do lead, mais recente primeiro (o filtro chega montado pela camada de cima)

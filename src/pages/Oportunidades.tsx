@@ -97,12 +97,15 @@ export default function Oportunidades() {
         const f = filtro !== undefined ? filtro : filtroStatus
         // AP-2026-11-11-0545: a UI constrói a expressão completa antes do service
         const expr = f ? `status='${f}'` : undefined
-        const r = await oportunidadesService.listPaginado(pag, POR_PAGINA, expr)
+        // lista e contadores em paralelo (antes: um depois do outro)
+        const [r, c] = await Promise.all([
+          oportunidadesService.listPaginado(pag, POR_PAGINA, expr),
+          oportunidadesService.contadores(),
+        ])
         setItens(r.itens)
         setTotal(r.total)
         setTotalPaginas(Math.max(1, r.totalPaginas))
         setPagina(r.pagina)
-        const c = await oportunidadesService.contadores()
         setContadores(c)
       } catch {
         toast({

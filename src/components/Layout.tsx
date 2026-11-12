@@ -11,6 +11,7 @@ import {
   UserPlus,
   ArrowLeftRight,
   Target,
+  BarChart3,
   LogOut,
   Menu,
   X,
@@ -154,6 +155,8 @@ export default function Layout() {
         return 'Transbordos'
       case '/oportunidades':
         return 'Oportunidades'
+      case '/metricas':
+        return 'Métricas'
       default:
         return 'Atendimento AHM'
     }
@@ -167,6 +170,7 @@ export default function Layout() {
     { name: 'Leads', path: '/leads', icon: UserPlus },
     { name: 'Transbordos', path: '/transbordos', icon: ArrowLeftRight },
     { name: 'Oportunidades', path: '/oportunidades', icon: Target },
+    { name: 'Métricas', path: '/metricas', icon: BarChart3 },
     { name: 'Equipe', path: '/equipe', icon: Users },
   ]
 

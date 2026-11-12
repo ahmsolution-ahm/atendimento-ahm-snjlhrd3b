@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-12T13:44:09.212Z",
+  "generatedAt": "2026-11-12T15:01:09.379Z",
   "collections": [
     {
       "name": "users",
@@ -829,6 +829,16 @@
           "type": "json",
           "required": false,
           "system": false
+        },
+        {
+          "name": "qualificacao_origem",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "manual",
+            "automatica"
+          ]
         }
       ],
       "indexes": [
