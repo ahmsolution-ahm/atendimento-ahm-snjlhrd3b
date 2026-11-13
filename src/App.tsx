@@ -1,9 +1,9 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, type ReactNode } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { AuthProvider } from '@/contexts/AuthContext'
+import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import Layout from '@/components/Layout'
 
@@ -36,6 +36,12 @@ const Carregando = () => (
   </div>
 )
 
+// Bloco 3: tela de gestão de usuários só para administrador (o servidor também recusa)
+const SomenteAdmin = ({ children }: { children: ReactNode }) => {
+  const { isAdmin } = useAuth()
+  return isAdmin ? <>{children}</> : <Navigate to="/" replace />
+}
+
 const App = () => (
   <BrowserRouter>
     <AuthProvider>
@@ -62,7 +68,14 @@ const App = () => (
               <Route path="/" element={<Dashboard />} />
               <Route path="/tickets" element={<Tickets />} />
               <Route path="/atendimentos" element={<Atendimentos />} />
-              <Route path="/equipe" element={<Equipe />} />
+              <Route
+                path="/equipe"
+                element={
+                  <SomenteAdmin>
+                    <Equipe />
+                  </SomenteAdmin>
+                }
+              />
               <Route path="/produtos" element={<Produtos />} />
               <Route path="/leads" element={<Leads />} />
               <Route path="/transbordos" element={<Transbordos />} />

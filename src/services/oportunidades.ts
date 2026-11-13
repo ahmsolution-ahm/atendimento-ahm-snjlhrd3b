@@ -179,13 +179,21 @@ export const oportunidadesService = {
       )
   },
 
+  // Bloco 3: o histórico de fechamentos é restrito ao administrador — para o vendedor o
+  // servidor recusa a leitura e a tela segue sem essa parte do histórico.
   async fechamentos(id: string): Promise<FechamentoRecord[]> {
-    const r = await pb.collection('oportunidade_fechamentos').getList<FechamentoRecord>(1, 100, {
-      filter: pb.filter('oportunidade = {:id}', { id }),
-      sort: 'registrado_em',
-      expand: 'registrado_por',
-    })
-    return r.items
+    try {
+      const r = await pb.collection('oportunidade_fechamentos').getList<FechamentoRecord>(1, 100, {
+        filter: pb.filter('oportunidade = {:id}', { id }),
+        sort: 'registrado_em',
+        expand: 'registrado_por',
+      })
+      return r.items
+    } catch (err) {
+      const status = (err as { status?: number })?.status
+      if (status === 403 || status === 404) return []
+      throw err
+    }
   },
 
   // F1-T14: aprovar — comentário opcional (decidido_em/por gravados pelo hook)

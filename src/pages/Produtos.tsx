@@ -2,10 +2,13 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { produtosService } from '@/services/produtos'
 import type { ProdutoRecord, ProdutoStatus } from '@/types'
 import { useToast } from '@/hooks/use-toast'
+import { useAuth } from '@/contexts/AuthContext'
 import { Package, RefreshCw, Power, Search, PackageOpen, AlertCircle, Sparkles } from 'lucide-react'
 
 export default function Produtos() {
   const { toast } = useToast()
+  // Bloco 3: catálogo é responsabilidade do administrador; vendedor só consulta
+  const { isAdmin } = useAuth()
   const [produtos, setProdutos] = useState<ProdutoRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -88,8 +91,9 @@ export default function Produtos() {
           </div>
           <h1 className="text-2xl font-extrabold text-[#030507]">Catálogo de Produtos</h1>
           <p className="text-xs text-[#6B7280]">
-            Produtos disponíveis para qualificação de leads — ative ou inative sem apagar o
-            histórico
+            {isAdmin
+              ? 'Produtos disponíveis para qualificação de leads — ative ou inative sem apagar o histórico.'
+              : 'Produtos disponíveis para qualificação de leads. Alterações no catálogo são feitas pelo administrador.'}
           </p>
         </div>
         <button
@@ -263,30 +267,32 @@ export default function Produtos() {
                 </div>
               </div>
 
-              {/* Ação Ativar/Inativar */}
-              <button
-                type="button"
-                onClick={() => handleToggleStatus(p)}
-                disabled={togglingId === p.id}
-                className={`px-4 py-2.5 rounded-xl text-xs font-semibold shadow-sm transition-all disabled:opacity-50 flex items-center gap-2 self-start md:self-auto shrink-0 ${
-                  p.status === 'Ativo'
-                    ? 'bg-white text-[#6B7280] border border-[#E5E7EB] hover:bg-[#FAF7F2]'
-                    : 'text-white hover:bg-[#C94F4F]'
-                }`}
-                style={p.status === 'Ativo' ? undefined : { backgroundColor: '#DE6464' }}
-                title={
-                  p.status === 'Ativo'
-                    ? 'Inativar: o produto sai da seleção de novos leads, mas o histórico é preservado'
-                    : 'Ativar: o produto volta a ficar disponível para qualificação'
-                }
-              >
-                {togglingId === p.id ? (
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Power className="w-4 h-4" />
-                )}
-                <span>{p.status === 'Ativo' ? 'Inativar' : 'Ativar'}</span>
-              </button>
+              {/* Ação Ativar/Inativar (só administrador) */}
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => handleToggleStatus(p)}
+                  disabled={togglingId === p.id}
+                  className={`px-4 py-2.5 rounded-xl text-xs font-semibold shadow-sm transition-all disabled:opacity-50 flex items-center gap-2 self-start md:self-auto shrink-0 ${
+                    p.status === 'Ativo'
+                      ? 'bg-white text-[#6B7280] border border-[#E5E7EB] hover:bg-[#FAF7F2]'
+                      : 'text-white hover:bg-[#C94F4F]'
+                  }`}
+                  style={p.status === 'Ativo' ? undefined : { backgroundColor: '#DE6464' }}
+                  title={
+                    p.status === 'Ativo'
+                      ? 'Inativar: o produto sai da seleção de novos leads, mas o histórico é preservado'
+                      : 'Ativar: o produto volta a ficar disponível para qualificação'
+                  }
+                >
+                  {togglingId === p.id ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Power className="w-4 h-4" />
+                  )}
+                  <span>{p.status === 'Ativo' ? 'Inativar' : 'Ativar'}</span>
+                </button>
+              )}
             </div>
           ))}
         </div>

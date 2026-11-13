@@ -40,7 +40,7 @@ import {
 import { ticketsService } from '@/services/tickets'
 
 export default function Layout() {
-  const { user, logout } = useAuth()
+  const { user, logout, isAdmin } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
   const { toast } = useToast()
@@ -146,7 +146,7 @@ export default function Layout() {
       case '/atendimentos':
         return 'Atendimentos em Tempo Real'
       case '/equipe':
-        return 'Equipe Comercial & Suporte'
+        return 'Equipe e permissões'
       case '/produtos':
         return 'Catálogo de Produtos'
       case '/leads':
@@ -171,7 +171,8 @@ export default function Layout() {
     { name: 'Transbordos', path: '/transbordos', icon: ArrowLeftRight },
     { name: 'Oportunidades', path: '/oportunidades', icon: Target },
     { name: 'Métricas', path: '/metricas', icon: BarChart3 },
-    { name: 'Equipe', path: '/equipe', icon: Users },
+    // Bloco 3: gestão de usuários só para administrador
+    ...(isAdmin ? [{ name: 'Equipe', path: '/equipe', icon: Users }] : []),
   ]
 
   return (
@@ -237,6 +238,9 @@ export default function Layout() {
                   {user?.name || 'Usuário'}
                 </p>
                 <p className="text-[10px] text-[#9CA3AF] truncate">{user?.email || ''}</p>
+                <p className="text-[10px] font-semibold text-[#E5BE94]">
+                  {isAdmin ? 'Administrador' : 'Vendedor'}
+                </p>
               </div>
             </div>
             <button

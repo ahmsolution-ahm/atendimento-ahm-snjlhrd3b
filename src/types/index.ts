@@ -8,10 +8,14 @@ export type ProdutoComplexidade = 'Baixa' | 'Alta'
 
 import type { RecordModel } from 'pocketbase'
 
+// Fase 2 · Bloco 3: papel do usuário (o servidor decide o acesso; a tela só esconde o que não cabe)
+export type PapelUsuario = 'admin' | 'vendedor'
+
 export interface UserRecord extends RecordModel {
   email: string
   name?: string
   avatar?: string
+  papel?: PapelUsuario | ''
 }
 
 export interface TicketRecord extends RecordModel {

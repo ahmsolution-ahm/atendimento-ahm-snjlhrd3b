@@ -78,7 +78,7 @@ function Insuficiente({ children }: { children: ReactNode }) {
 }
 
 export default function Metricas() {
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
   const { toast } = useToast()
 
   const [dias, setDias] = useState<number | null>(30)
@@ -389,50 +389,52 @@ export default function Metricas() {
       {/* Fase 2 · Bloco 2: taxas de passagem real × alvo e taxa de vitória */}
       <PainelPipeline dados={pipeline} carregando={carregando} />
 
-      {/* Demonstração */}
-      <div className="bg-white rounded-2xl border border-dashed border-[#D1D5DB] p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <Database className="w-5 h-5 text-[#6B7280] mt-0.5 shrink-0" />
-          <div>
-            <p className="text-sm font-bold text-[#030507]">Dados de demonstração</p>
-            <p className="text-xs text-[#6B7280] max-w-xl">
-              Carrega 10 leads fictícios do recorte piloto, qualificados pelo motor e registrados
-              como qualificação automática, com interações até a proposta — para ver o painel
-              funcionando. Ficam identificados como “DEMO” e podem ser removidos a qualquer momento,
-              sem afetar os dados reais.
-            </p>
-            <p className="text-xs font-semibold text-[#374151] mt-1">
-              {qtdDemo > 0
-                ? `Carregados: ${plural(qtdDemo, 'lead de demonstração', 'leads de demonstração')}.`
-                : 'Nenhum dado de demonstração carregado.'}
-            </p>
+      {/* Demonstração — Bloco 3: só administrador carrega/remove */}
+      {isAdmin && (
+        <div className="bg-white rounded-2xl border border-dashed border-[#D1D5DB] p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <Database className="w-5 h-5 text-[#6B7280] mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-bold text-[#030507]">Dados de demonstração</p>
+              <p className="text-xs text-[#6B7280] max-w-xl">
+                Carrega 10 leads fictícios do recorte piloto, qualificados pelo motor e registrados
+                como qualificação automática, com interações até a proposta — para ver o painel
+                funcionando. Ficam identificados como “DEMO” e podem ser removidos a qualquer
+                momento, sem afetar os dados reais.
+              </p>
+              <p className="text-xs font-semibold text-[#374151] mt-1">
+                {qtdDemo > 0
+                  ? `Carregados: ${plural(qtdDemo, 'lead de demonstração', 'leads de demonstração')}.`
+                  : 'Nenhum dado de demonstração carregado.'}
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            {qtdDemo === 0 ? (
+              <button
+                type="button"
+                onClick={carregarDemo}
+                disabled={processandoDemo || carregando}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-white shadow-md disabled:opacity-50 flex items-center gap-1.5"
+                style={{ backgroundColor: '#DE6464' }}
+              >
+                <Database className="w-3.5 h-3.5" />
+                {processandoDemo ? 'Carregando…' : 'Carregar demonstração'}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={removerDemo}
+                disabled={processandoDemo || carregando}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#030507] bg-white border border-[#E5E7EB] shadow-sm hover:bg-[#FAF7F2] disabled:opacity-50 flex items-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                {processandoDemo ? 'Removendo…' : 'Remover demonstração'}
+              </button>
+            )}
           </div>
         </div>
-        <div className="flex gap-2 shrink-0">
-          {qtdDemo === 0 ? (
-            <button
-              type="button"
-              onClick={carregarDemo}
-              disabled={processandoDemo || carregando}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-white shadow-md disabled:opacity-50 flex items-center gap-1.5"
-              style={{ backgroundColor: '#DE6464' }}
-            >
-              <Database className="w-3.5 h-3.5" />
-              {processandoDemo ? 'Carregando…' : 'Carregar demonstração'}
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={removerDemo}
-              disabled={processandoDemo || carregando}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-[#030507] bg-white border border-[#E5E7EB] shadow-sm hover:bg-[#FAF7F2] disabled:opacity-50 flex items-center gap-1.5"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              {processandoDemo ? 'Removendo…' : 'Remover demonstração'}
-            </button>
-          )}
-        </div>
-      </div>
+      )}
     </div>
   )
 }

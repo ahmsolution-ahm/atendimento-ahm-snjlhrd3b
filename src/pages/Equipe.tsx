@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react'
-import { usersService } from '@/services/users'
-import type { UserRecord } from '@/types'
+import React, { useCallback, useEffect, useState } from 'react'
+import { usersService, rotuloPapel } from '@/services/users'
+import type { PapelUsuario, UserRecord } from '@/types'
+import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
-import { UserPlus, Mail, ShieldCheck, Star, CheckCircle2, Clock, Sparkles } from 'lucide-react'
+import { UserPlus, Mail, ShieldCheck, RefreshCw, Sparkles } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -11,85 +12,123 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 
-interface MemberExtraData {
-  cargo: string
-  isOnline: boolean
-  ticketsResolvidos: number
-  tempoMedio: string
-  rating: number
-  avatarSeed: number
+// Fase 2 · Bloco 3 (F2-T11): gestão da equipe — só administrador (rota e servidor restringem).
+// Papéis: Administrador (tudo, inclusive exclusões, catálogo, demonstração e usuários) e
+// Vendedor (operação do dia a dia de leads, oportunidades, transbordos e métricas).
+
+const mensagemErro = (err: unknown, padrao: string): string => {
+  const e = err as { response?: { message?: string; data?: Record<string, { message?: string }> } }
+  const campos = e?.response?.data ? Object.values(e.response.data) : []
+  const primeiro = campos.find((c) => c?.message)?.message
+  return primeiro || e?.response?.message || padrao
 }
+
+const PAPEIS: { valor: PapelUsuario; descricao: string }[] = [
+  {
+    valor: 'vendedor',
+    descricao: 'Opera leads, oportunidades, transbordos, interações, checklist e métricas.',
+  },
+  {
+    valor: 'admin',
+    descricao:
+      'Tudo do vendedor, mais exclusões, catálogo de produtos, demonstração e gestão da equipe.',
+  },
+]
 
 export default function Equipe() {
   const { toast } = useToast()
-  const [users, setUsers] = useState<UserRecord[]>([])
-  const [loading, setLoading] = useState(true)
+  const { user } = useAuth()
+  const [usuarios, setUsuarios] = useState<UserRecord[]>([])
+  const [carregando, setCarregando] = useState(true)
+  const [salvandoId, setSalvandoId] = useState<string | null>(null)
 
-  // Modal de Convite
-  const [isInviteOpen, setIsInviteOpen] = useState(false)
-  const [inviteEmail, setInviteEmail] = useState('')
-  const [inviteCargo, setInviteCargo] = useState('Consultor Comercial')
-  const [isInviting, setIsInviting] = useState(false)
+  const [cadastroAberto, setCadastroAberto] = useState(false)
+  const [form, setForm] = useState({
+    nome: '',
+    email: '',
+    senha: '',
+    papel: 'vendedor' as PapelUsuario,
+  })
+  const [cadastrando, setCadastrando] = useState(false)
 
-  // Mapeamento visual enriquecido para a equipe da AHM Solution
-  const teamMetadata: Record<string, MemberExtraData> = {
-    'afonso.moreira@ahmsolution.com': {
-      cargo: 'Coordenador Comercial & Contas Chave',
-      isOnline: true,
-      ticketsResolvidos: 48,
-      tempoMedio: '14 min',
-      rating: 4.9,
-      avatarSeed: 12,
-    },
-    'beatriz.silva@ahmsolution.com': {
-      cargo: 'Especialista em Logística e Fretes',
-      isOnline: true,
-      ticketsResolvidos: 35,
-      tempoMedio: '16 min',
-      rating: 4.8,
-      avatarSeed: 24,
-    },
-    'carlos.mendes@ahmsolution.com': {
-      cargo: 'Consultor de Armazenagem & Contratos',
-      isOnline: false,
-      ticketsResolvidos: 29,
-      tempoMedio: '22 min',
-      rating: 4.7,
-      avatarSeed: 45,
-    },
-    'mariana.costa@ahmsolution.com': {
-      cargo: 'Analista de Suporte e Integrações',
-      isOnline: true,
-      ticketsResolvidos: 41,
-      tempoMedio: '12 min',
-      rating: 5.0,
-      avatarSeed: 88,
-    },
-  }
+  const carregar = useCallback(async () => {
+    setCarregando(true)
+    try {
+      setUsuarios(await usersService.list())
+    } catch {
+      toast({
+        title: 'Erro ao carregar a equipe',
+        description: 'Não foi possível listar os usuários. Tente novamente.',
+        variant: 'destructive',
+      })
+    } finally {
+      setCarregando(false)
+    }
+  }, [toast])
 
   useEffect(() => {
-    usersService
-      .list()
-      .then((data) => setUsers(data))
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
+    carregar()
+  }, [carregar])
 
-  const handleSendInvite = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!inviteEmail) return
-
-    setIsInviting(true)
-    setTimeout(() => {
-      setIsInviting(false)
-      setIsInviteOpen(false)
+  const alterarPapel = async (membro: UserRecord, papel: PapelUsuario) => {
+    if ((membro.papel || 'vendedor') === papel) return
+    const nome = membro.name || membro.email
+    if (
+      !window.confirm(
+        `Alterar o papel de ${nome} para ${rotuloPapel(papel)}? A mudança vale a partir da próxima ação dessa pessoa no sistema.`,
+      )
+    )
+      return
+    setSalvandoId(membro.id)
+    try {
+      const atualizado = await usersService.alterarPapel(membro.id, papel)
+      setUsuarios((prev) => prev.map((u) => (u.id === membro.id ? { ...u, ...atualizado } : u)))
+      toast({ title: 'Papel atualizado', description: `${nome} agora é ${rotuloPapel(papel)}.` })
+    } catch (err) {
       toast({
-        title: 'Convite enviado!',
-        description: `Link de acesso enviado para ${inviteEmail} com cargo "${inviteCargo}".`,
+        title: 'Não foi possível alterar o papel',
+        description: mensagemErro(err, 'Ocorreu uma falha inesperada. Tente novamente.'),
+        variant: 'destructive',
       })
-      setInviteEmail('')
-    }, 800)
+    } finally {
+      setSalvandoId(null)
+    }
   }
+
+  const cadastrar = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (form.senha.length < 8) {
+      toast({
+        title: 'Senha muito curta',
+        description: 'A senha inicial deve ter ao menos 8 caracteres.',
+        variant: 'destructive',
+      })
+      return
+    }
+    setCadastrando(true)
+    try {
+      await usersService.cadastrar(form)
+      toast({
+        title: 'Usuário cadastrado',
+        description: `${form.nome || form.email} já pode entrar com o e-mail e a senha inicial informados.`,
+      })
+      setCadastroAberto(false)
+      setForm({ nome: '', email: '', senha: '', papel: 'vendedor' })
+      await carregar()
+    } catch (err) {
+      toast({
+        title: 'Não foi possível cadastrar o usuário',
+        description: mensagemErro(err, 'Verifique os dados e tente novamente.'),
+        variant: 'destructive',
+      })
+    } finally {
+      setCadastrando(false)
+    }
+  }
+
+  const inputCls =
+    'w-full px-3 py-2.5 rounded-xl border border-[#E5E7EB] text-xs text-[#030507] bg-white outline-none focus:border-[#DE6464]'
+  const labelCls = 'block text-xs font-semibold text-[#030507] mb-1'
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -98,183 +137,189 @@ export default function Equipe() {
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold text-[#DE6464] mb-1">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Gestão de Colaboradores</span>
+            <span>Gestão da equipe</span>
           </div>
-          <h1 className="text-2xl font-extrabold text-[#030507]">Equipe Comercial & Suporte</h1>
+          <h1 className="text-2xl font-extrabold text-[#030507]">Equipe e permissões</h1>
           <p className="text-xs text-[#6B7280]">
-            Membros cadastrados, disponibilidade em tempo real e indicadores de desempenho
+            Usuários com acesso à plataforma e o papel de cada um.
           </p>
         </div>
-
-        <button
-          type="button"
-          onClick={() => setIsInviteOpen(true)}
-          className="px-4 py-2.5 rounded-xl text-xs font-semibold text-white shadow-md transition-all hover:bg-[#C94F4F] flex items-center gap-2 self-start sm:self-auto"
-          style={{ backgroundColor: '#DE6464' }}
-        >
-          <UserPlus className="w-4 h-4" />
-          <span>Convidar membro</span>
-        </button>
+        <div className="flex gap-2 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={carregar}
+            className="px-3 py-2.5 rounded-xl text-xs font-semibold text-[#030507] bg-white border border-[#E5E7EB] shadow-sm hover:bg-[#FAF7F2] flex items-center gap-2"
+          >
+            <RefreshCw className={`w-4 h-4 ${carregando ? 'animate-spin' : ''}`} />
+            Atualizar
+          </button>
+          <button
+            type="button"
+            onClick={() => setCadastroAberto(true)}
+            className="px-4 py-2.5 rounded-xl text-xs font-semibold text-white shadow-md hover:bg-[#C94F4F] flex items-center gap-2"
+            style={{ backgroundColor: '#DE6464' }}
+          >
+            <UserPlus className="w-4 h-4" />
+            Cadastrar usuário
+          </button>
+        </div>
       </div>
 
-      {/* Grid de Cards da Equipe */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        {users.map((member) => {
-          const meta = teamMetadata[member.email] || {
-            cargo: 'Consultor Comercial',
-            isOnline: false,
-            ticketsResolvidos: 18,
-            tempoMedio: '20 min',
-            rating: 4.8,
-            avatarSeed: 99,
-          }
-
-          return (
-            <div
-              key={member.id}
-              className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all p-5 flex flex-col justify-between relative overflow-hidden group"
-            >
-              {/* Indicador de Status Online/Offline */}
-              <div className="flex items-center justify-between mb-4">
-                <span
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
-                    meta.isOnline
-                      ? 'bg-emerald-50 text-[#10B981] border-emerald-200'
-                      : 'bg-gray-100 text-[#6B7280] border-gray-200'
-                  }`}
-                >
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      meta.isOnline ? 'bg-[#10B981]' : 'bg-[#9CA3AF]'
-                    }`}
-                  />
-                  {meta.isOnline ? 'Online' : 'Offline'}
-                </span>
-
-                <div className="flex items-center gap-1 text-[11px] font-bold text-[#E5BE94]">
-                  <Star className="w-3.5 h-3.5 fill-[#E5BE94] text-[#E5BE94]" />
-                  <span>{meta.rating.toFixed(1)}</span>
-                </div>
-              </div>
-
-              {/* Avatar + Nome + Email */}
-              <div className="flex flex-col items-center text-center mb-5">
-                <div className="relative mb-3">
-                  <img
-                    src={`https://img.usecurling.com/ppl/128?seed=${meta.avatarSeed}`}
-                    alt={member.name || 'Membro AHM'}
-                    className="w-16 h-16 rounded-2xl object-cover shadow-sm border-2 border-white ring-2 ring-[#DE6464]/20"
-                  />
-                  {meta.isOnline && (
-                    <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-[#10B981] ring-2 ring-white" />
-                  )}
-                </div>
-
-                <h2 className="text-sm font-bold text-[#030507]">
-                  {member.name || 'Colaborador AHM'}
-                </h2>
-                <span className="text-[11px] font-medium text-[#DE6464] mt-0.5">{meta.cargo}</span>
-
-                <div className="flex items-center gap-1 text-[11px] text-[#6B7280] mt-2">
-                  <Mail className="w-3 h-3 text-[#9CA3AF]" />
-                  <span className="truncate max-w-[190px]">{member.email}</span>
-                </div>
-              </div>
-
-              {/* Métricas Individuais */}
-              <div className="grid grid-cols-2 gap-2 pt-4 border-t border-[#E5E7EB] text-center">
-                <div className="p-2 rounded-xl bg-[#FAF7F2]">
-                  <span className="text-[10px] text-[#6B7280] block font-medium">Resolvidos</span>
-                  <span className="text-xs font-bold text-[#030507] flex items-center justify-center gap-1 mt-0.5">
-                    <CheckCircle2 className="w-3 h-3 text-[#10B981]" />
-                    {meta.ticketsResolvidos}
-                  </span>
-                </div>
-
-                <div className="p-2 rounded-xl bg-[#FAF7F2]">
-                  <span className="text-[10px] text-[#6B7280] block font-medium">Tempo Médio</span>
-                  <span className="text-xs font-bold text-[#030507] flex items-center justify-center gap-1 mt-0.5">
-                    <Clock className="w-3 h-3 text-[#E5BE94]" />
-                    {meta.tempoMedio}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )
-        })}
+      {/* Legenda dos papéis */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {PAPEIS.map((p) => (
+          <div key={p.valor} className="bg-white rounded-2xl border border-[#E5E7EB] p-4">
+            <p className="text-xs font-bold text-[#030507] flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#DE6464]" />
+              {rotuloPapel(p.valor)}
+            </p>
+            <p className="text-[11px] text-[#6B7280] mt-1">{p.descricao}</p>
+          </div>
+        ))}
       </div>
 
-      {/* Modal Convidar Membro */}
-      <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
+      {/* Lista */}
+      {carregando ? (
+        <div className="flex items-center justify-center py-16">
+          <RefreshCw className="w-6 h-6 text-[#DE6464] animate-spin" />
+        </div>
+      ) : usuarios.length === 0 ? (
+        <p className="text-xs text-[#6B7280] bg-white rounded-2xl border border-[#E5E7EB] p-6 text-center">
+          Nenhum usuário encontrado.
+        </p>
+      ) : (
+        <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm divide-y divide-[#F3F4F6]">
+          {usuarios.map((m) => {
+            const papel = (m.papel || 'vendedor') as PapelUsuario
+            const ehVoce = m.id === user?.id
+            return (
+              <div
+                key={m.id}
+                className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs text-white shrink-0"
+                    style={{ backgroundColor: papel === 'admin' ? '#030507' : '#DE6464' }}
+                  >
+                    {(m.name || m.email).charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-[#030507] truncate">
+                      {m.name || 'Sem nome cadastrado'}
+                      {ehVoce && (
+                        <span className="ml-2 text-[10px] font-semibold text-[#6B7280]">
+                          (você)
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-[11px] text-[#6B7280] flex items-center gap-1 truncate">
+                      <Mail className="w-3 h-3 text-[#9CA3AF]" />
+                      {m.email}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <label htmlFor={`papel-${m.id}`} className="text-[11px] text-[#6B7280]">
+                    Papel
+                  </label>
+                  <select
+                    id={`papel-${m.id}`}
+                    value={papel}
+                    disabled={salvandoId === m.id}
+                    onChange={(e) => alterarPapel(m, e.target.value as PapelUsuario)}
+                    className="px-3 py-2 rounded-xl border border-[#E5E7EB] text-xs text-[#030507] bg-white outline-none focus:border-[#DE6464] disabled:opacity-50"
+                  >
+                    <option value="vendedor">Vendedor</option>
+                    <option value="admin">Administrador</option>
+                  </select>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Cadastro de usuário */}
+      <Dialog open={cadastroAberto} onOpenChange={setCadastroAberto}>
         <DialogContent className="max-w-md bg-white p-6 rounded-2xl modal-ahm">
           <DialogHeader>
-            <div className="w-10 h-10 rounded-xl bg-[#DE6464]/10 text-[#DE6464] flex items-center justify-center mb-2">
-              <ShieldCheck className="w-5 h-5" />
-            </div>
             <DialogTitle className="text-lg font-bold text-[#030507]">
-              Convidar Novo Membro da Equipe
+              Cadastrar usuário
             </DialogTitle>
             <DialogDescription className="text-xs text-[#6B7280]">
-              Envie um convite seguro para ingresso na plataforma comercial da AHM Solution.
+              Crie o acesso com uma senha inicial e informe-a à pessoa por um canal seguro.
             </DialogDescription>
           </DialogHeader>
-
-          <form onSubmit={handleSendInvite} className="space-y-4 mt-2">
+          <form onSubmit={cadastrar} className="space-y-4 mt-2">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-[#030507] mb-1">
-                Email Corporativo *
+              <label className={labelCls} htmlFor="cad-nome">
+                Nome
               </label>
               <input
-                type="email"
+                id="cad-nome"
+                value={form.nome}
+                onChange={(e) => setForm({ ...form, nome: e.target.value })}
+                className={inputCls}
                 required
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                placeholder="colaborador@ahmsolution.com.br"
-                className="w-full px-3 py-2.5 rounded-xl border border-[#E5E7EB] text-xs text-[#030507] outline-none focus:border-[#DE6464]"
               />
             </div>
-
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-[#030507] mb-1">
-                Cargo / Função *
+              <label className={labelCls} htmlFor="cad-email">
+                E-mail corporativo
+              </label>
+              <input
+                id="cad-email"
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                className={inputCls}
+                required
+              />
+            </div>
+            <div>
+              <label className={labelCls} htmlFor="cad-senha">
+                Senha inicial (mínimo de 8 caracteres)
+              </label>
+              <input
+                id="cad-senha"
+                type="password"
+                autoComplete="new-password"
+                value={form.senha}
+                onChange={(e) => setForm({ ...form, senha: e.target.value })}
+                className={inputCls}
+                required
+              />
+            </div>
+            <div>
+              <label className={labelCls} htmlFor="cad-papel">
+                Papel
               </label>
               <select
-                value={inviteCargo}
-                onChange={(e) => setInviteCargo(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl border border-[#E5E7EB] text-xs text-[#030507] bg-white outline-none focus:border-[#DE6464]"
+                id="cad-papel"
+                value={form.papel}
+                onChange={(e) => setForm({ ...form, papel: e.target.value as PapelUsuario })}
+                className={inputCls}
               >
-                <option value="Consultor Comercial">Consultor Comercial</option>
-                <option value="Especialista em Logística e Fretes">
-                  Especialista em Logística e Fretes
-                </option>
-                <option value="Analista de Suporte ao Cliente">
-                  Analista de Suporte ao Cliente
-                </option>
-                <option value="Supervisor de Operações">Supervisor de Operações</option>
-                <option value="Gerente de Contas">Gerente de Contas</option>
+                <option value="vendedor">Vendedor</option>
+                <option value="admin">Administrador</option>
               </select>
             </div>
-
-            <div className="p-3 rounded-xl bg-[#FAF7F2] border border-[#E5E7EB] text-[11px] text-[#6B7280]">
-              O colaborador receberá um email com instruções para criação da credencial de acesso
-              com permissões padrão da equipe comercial.
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-3">
+            <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => setIsInviteOpen(false)}
+                onClick={() => setCadastroAberto(false)}
                 className="px-4 py-2 rounded-xl text-xs font-medium text-[#6B7280]"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                disabled={isInviting || !inviteEmail}
+                disabled={cadastrando}
                 className="px-5 py-2 rounded-xl text-xs font-semibold text-white shadow-md disabled:opacity-50"
                 style={{ backgroundColor: '#DE6464' }}
               >
-                {isInviting ? 'Enviando convite...' : 'Enviar Convite'}
+                {cadastrando ? 'Cadastrando…' : 'Cadastrar'}
               </button>
             </div>
           </form>

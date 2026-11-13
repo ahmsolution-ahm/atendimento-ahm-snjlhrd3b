@@ -6,6 +6,8 @@ interface AuthContextType {
   user: UserRecord | null
   token: string | null
   isAuthenticated: boolean
+  // Bloco 3: só para mostrar/esconder elementos — quem decide o acesso é o servidor
+  isAdmin: boolean
   isLoading: boolean
   login: (email: string, pass: string) => Promise<void>
   logout: () => void
@@ -35,6 +37,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (pb.authStore.isValid && pb.authStore.record) {
       setUser(pb.authStore.record as unknown as UserRecord)
       setToken(pb.authStore.token)
+      // Bloco 3: recarrega o registro do usuário para refletir uma troca de papel recente
+      pb.collection('users')
+        .authRefresh({ requestKey: null })
+        .catch(() => {
+          /* sem conexão: segue com o registro salvo; o servidor continua validando */
+        })
     } else {
       pb.authStore.clear()
       setUser(null)
@@ -82,6 +90,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         token,
         isAuthenticated: !!token && !!user,
+        isAdmin: user?.papel === 'admin',
         isLoading,
         login,
         logout,
