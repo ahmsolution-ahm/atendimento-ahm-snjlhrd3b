@@ -1,6 +1,9 @@
 import pb from '@/lib/pocketbase/client'
 import type {
   AmbienteFechamento,
+  ChecklistItemRecord,
+  ChecklistRespostaRecord,
+  FechamentoRecord,
   OportunidadeEtapaRecord,
   OportunidadeRecord,
   PipelineEtapaRecord,
@@ -112,6 +115,79 @@ export const oportunidadesService = {
     return await pb
       .collection('oportunidades')
       .update<OportunidadeRecord>(id, { etapa_atual: etapaId }, { expand: EXPAND })
+  },
+
+  // F2-T05: itens do checklist das etapas (coleção pequena — dezenas de itens)
+  async checklistItens(): Promise<ChecklistItemRecord[]> {
+    const r = await pb
+      .collection('etapa_checklist_itens')
+      .getList<ChecklistItemRecord>(1, 500, { sort: 'etapa,ordem' })
+    return r.items
+  },
+
+  async checklistRespostas(historicoId: string): Promise<ChecklistRespostaRecord[]> {
+    const r = await pb
+      .collection('etapa_checklist_respostas')
+      .getList<ChecklistRespostaRecord>(1, 200, {
+        filter: pb.filter('historico = {:h}', { h: historicoId }),
+      })
+    return r.items
+  },
+
+  // F2-T05: grava as marcações do checklist no registro da etapa em andamento
+  // (quem/quando são gravados pelo servidor; respostas não são editáveis depois)
+  async salvarChecklist(
+    historicoId: string,
+    respostas: { item: string; marcado: boolean; observacao?: string }[],
+  ): Promise<void> {
+    for (const r of respostas) {
+      await pb
+        .collection('etapa_checklist_respostas')
+        .create(
+          {
+            historico: historicoId,
+            item: r.item,
+            marcado: r.marcado,
+            observacao: r.observacao || '',
+          },
+          { requestKey: null },
+        )
+    }
+  },
+
+  // F2-T06: fechamento ganho/perda (o servidor exige motivo + ambiente + valor)
+  async registrarResultado(
+    id: string,
+    resultado: 'ganha' | 'perdida',
+    motivo: string,
+    concorrente?: string,
+  ): Promise<OportunidadeRecord> {
+    return await pb
+      .collection('oportunidades')
+      .update<OportunidadeRecord>(
+        id,
+        { resultado, resultado_motivo: motivo.trim(), concorrente: (concorrente || '').trim() },
+        { expand: EXPAND },
+      )
+  },
+
+  async reabrir(id: string, justificativa: string): Promise<OportunidadeRecord> {
+    return await pb
+      .collection('oportunidades')
+      .update<OportunidadeRecord>(
+        id,
+        { resultado: '', reabertura_motivo: justificativa.trim() },
+        { expand: EXPAND },
+      )
+  },
+
+  async fechamentos(id: string): Promise<FechamentoRecord[]> {
+    const r = await pb.collection('oportunidade_fechamentos').getList<FechamentoRecord>(1, 100, {
+      filter: pb.filter('oportunidade = {:id}', { id }),
+      sort: 'registrado_em',
+      expand: 'registrado_por',
+    })
+    return r.items
   },
 
   // F1-T14: aprovar — comentário opcional (decidido_em/por gravados pelo hook)

@@ -9,7 +9,23 @@ import {
   type ResultadoK2,
   type ResultadoK3,
 } from '@/lib/metricas'
-import type { InteracaoRecord } from '@/types'
+import type { InteracaoRecord, PipelineEtapaRecord } from '@/types'
+import { lerTodasPaginas } from '@/lib/paginacao'
+import {
+  calcularTaxasPassagem,
+  taxaVitoria,
+  type PassagemEtapa,
+  type TaxaEtapa,
+} from '@/lib/pipeline'
+
+export interface DadosPipeline {
+  baixa: TaxaEtapa[]
+  alta: TaxaEtapa[]
+  passagens: number
+  ganhas: number
+  perdidas: number
+  taxaVitoria: number | null
+}
 
 // F1-T16 — SPEC 1.6: leitura dos dados para os indicadores.
 // Tudo é CONTADO no servidor (getList com 1 item por página → totalItems) — nunca carrega
@@ -82,6 +98,43 @@ export const metricasService = {
       }
     }
     return calcularK2(leads.map((id) => calcularAteProposta(porLead.get(id) || [])))
+  },
+
+  /**
+   * Fase 2 · Bloco 2 (RN-2.3): taxas de passagem real × alvo por etapa das duas trilhas,
+   * a partir do histórico de etapas (oportunidade_etapas), e taxa de vitória dos fechamentos.
+   * Período: pela data de entrada na etapa e pela data do fechamento.
+   */
+  async pipeline(inicio: string | null): Promise<DadosPipeline> {
+    const etapasR = await pb
+      .collection('pipeline_etapas')
+      .getList<PipelineEtapaRecord>(1, 50, { sort: 'trilha,ordem' })
+    const passagens: PassagemEtapa[] = []
+    await lerTodasPaginas<PassagemEtapa>(
+      (pagina, comTotal) =>
+        pb.collection('oportunidade_etapas').getList<PassagemEtapa & { id: string }>(pagina, 500, {
+          filter: inicio ? `entrou_em >= '${inicio}'` : '',
+          fields: 'oportunidade,etapa,entrou_em',
+          sort: 'created,id',
+          skipTotal: !comTotal,
+          requestKey: null,
+        }),
+      500,
+      (itens) => passagens.push(...itens),
+    )
+    const fechadoNoPeriodo = inicio ? ` && fechado_em >= '${inicio}'` : ''
+    const [ganhas, perdidas] = await Promise.all([
+      contar('oportunidades', `resultado = 'ganha'${fechadoNoPeriodo}`),
+      contar('oportunidades', `resultado = 'perdida'${fechadoNoPeriodo}`),
+    ])
+    return {
+      baixa: calcularTaxasPassagem(etapasR.items, 'baixa', passagens),
+      alta: calcularTaxasPassagem(etapasR.items, 'alta', passagens),
+      passagens: passagens.length,
+      ganhas,
+      perdidas,
+      taxaVitoria: taxaVitoria(ganhas, perdidas),
+    }
   },
 
   /**

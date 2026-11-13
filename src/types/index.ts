@@ -108,6 +108,38 @@ export interface PipelineEtapaRecord extends RecordModel {
   nome: string
   fase: 'Pré-venda' | 'Venda' | 'Pós-venda'
   taxa_alvo?: number
+  responsavel_sugerido?: string
+  duracao?: string
+}
+
+// Fase 2 · Bloco 2 — checklist por etapa e fechamento
+export interface ChecklistItemRecord extends RecordModel {
+  etapa: string
+  ordem?: number
+  tipo: 'criterio' | 'insucesso' | 'pergunta'
+  texto: string
+}
+
+export interface ChecklistRespostaRecord extends RecordModel {
+  historico: string
+  item: string
+  marcado?: boolean
+  observacao?: string
+  respondido_por?: string
+  respondido_em?: string
+}
+
+export interface FechamentoRecord extends RecordModel {
+  oportunidade: string
+  acao: 'fechamento' | 'reabertura'
+  resultado?: 'ganha' | 'perdida' | ''
+  motivo: string
+  concorrente?: string
+  valor_estimado?: number
+  moeda?: string
+  registrado_por?: string
+  registrado_em: string
+  expand?: { registrado_por?: UserRecord }
 }
 
 export interface OportunidadeEtapaRecord extends RecordModel {
@@ -140,6 +172,12 @@ export interface OportunidadeRecord extends RecordModel {
   trilha?: Trilha | ''
   etapa_atual?: string
   etapa_desde?: string
+  resultado?: 'ganha' | 'perdida' | ''
+  resultado_motivo?: string
+  concorrente?: string
+  fechado_em?: string
+  fechado_por?: string
+  reabertura_motivo?: string
   expand?: {
     lead?: LeadRecord
     produto?: ProdutoRecord
@@ -209,6 +247,9 @@ export interface LeadRecord extends RecordModel {
   qualificado_por?: string
   qualificacao_historico?: string
   qualificacao_origem?: 'manual' | 'automatica' | ''
+  arquivado?: boolean
+  arquivado_em?: string
+  arquivado_motivo?: string
   expand?: {
     produto_interesse?: ProdutoRecord
     responsavel?: UserRecord

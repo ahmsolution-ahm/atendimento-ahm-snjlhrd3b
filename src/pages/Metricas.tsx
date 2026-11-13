@@ -2,7 +2,14 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { BarChart3, Bot, Repeat, Users, Copy, Database, Trash2, RefreshCw } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
-import { metricasService, type DadosK1, type DadosK3, type DiasMetricas } from '@/services/metricas'
+import {
+  metricasService,
+  type DadosK1,
+  type DadosK3,
+  type DadosPipeline,
+  type DiasMetricas,
+} from '@/services/metricas'
+import PainelPipeline from '@/components/PainelPipeline'
 import { demonstracaoService, ORIGEM_DEMO } from '@/services/demonstracao'
 import {
   AMOSTRA_MINIMA_K1,
@@ -80,6 +87,7 @@ export default function Metricas() {
   const [k1, setK1] = useState<DadosK1 | null>(null)
   const [k2, setK2] = useState<ResultadoK2 | null>(null)
   const [k3, setK3] = useState<DadosK3 | null>(null)
+  const [pipeline, setPipeline] = useState<DadosPipeline | null>(null)
 
   const [qtdDemo, setQtdDemo] = useState(0)
   const [processandoDemo, setProcessandoDemo] = useState(false)
@@ -99,16 +107,18 @@ export default function Metricas() {
         inicio ? `data >= '${inicio}'` : '',
         filtroFonte(fonte, 'lead.origem'),
       )
-      const [r1, r2, r3, demo] = await Promise.all([
+      const [r1, r2, r3, demo, pip] = await Promise.all([
         metricasService.qualificacaoAutomatica(filtroLeads),
         metricasService.interacoesAteProposta(filtroPropostas),
         metricasService.capacidadePorVendedor(dias as DiasMetricas, fonte),
         demonstracaoService.quantidade(),
+        metricasService.pipeline(inicio),
       ])
       setK1(r1)
       setK2(r2)
       setK3(r3)
       setQtdDemo(demo)
+      setPipeline(pip)
     } catch {
       toast({
         title: 'Erro ao carregar métricas',
@@ -375,6 +385,9 @@ export default function Metricas() {
           </div>
         </div>
       </div>
+
+      {/* Fase 2 · Bloco 2: taxas de passagem real × alvo e taxa de vitória */}
+      <PainelPipeline dados={pipeline} carregando={carregando} />
 
       {/* Demonstração */}
       <div className="bg-white rounded-2xl border border-dashed border-[#D1D5DB] p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">

@@ -138,10 +138,12 @@ export const leadsService = {
 
   // F1-T09/desempenho: contadores agregados (3 requisições leves em vez de carregar tudo)
   async contadores(): Promise<{ total: number; novos: number; pendentes: number }> {
+    // Fase 2 · Bloco 2: lead arquivado não entra nos contadores
+    const ativos = 'arquivado != true'
     const [total, novos, pendentes] = await Promise.all([
-      pb.collection('leads').getList(1, 1, {}),
-      pb.collection('leads').getList(1, 1, { filter: "status='novo'" }),
-      pb.collection('leads').getList(1, 1, { filter: "status='pendente'" }),
+      pb.collection('leads').getList(1, 1, { filter: ativos }),
+      pb.collection('leads').getList(1, 1, { filter: `${ativos} && status='novo'` }),
+      pb.collection('leads').getList(1, 1, { filter: `${ativos} && status='pendente'` }),
     ])
     return { total: total.totalItems, novos: novos.totalItems, pendentes: pendentes.totalItems }
   },
@@ -175,6 +177,24 @@ export const leadsService = {
     return await pb.collection('leads').update<LeadRecord>(id, payload, {
       expand: 'produto_interesse,responsavel',
     })
+  },
+
+  // Fase 2 · Bloco 2: arquivar (substitui a exclusão de lead real) e restaurar.
+  // O servidor exige o motivo e grava quem/quando; o lead continua na base.
+  async arquivar(id: string, motivo: string): Promise<LeadRecord> {
+    return await pb
+      .collection('leads')
+      .update<LeadRecord>(
+        id,
+        { arquivado: true, arquivado_motivo: motivo.trim() },
+        { expand: 'produto_interesse,responsavel' },
+      )
+  },
+
+  async restaurar(id: string): Promise<LeadRecord> {
+    return await pb
+      .collection('leads')
+      .update<LeadRecord>(id, { arquivado: false }, { expand: 'produto_interesse,responsavel' })
   },
 
   // F1-T07/F1-T08: gravar o resultado do motor de qualificação com histórico de reprocessamento.

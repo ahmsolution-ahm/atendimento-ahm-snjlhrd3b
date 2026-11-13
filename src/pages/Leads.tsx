@@ -169,11 +169,16 @@ export default function Leads() {
   // F2-T01: campos de entrada (área de interesse, país, idioma, modelo de compra)
   const [entradaNovo, setEntradaNovo] = useState<CamposEntrada>(CAMPOS_ENTRADA_PADRAO)
   const [entradaEdit, setEntradaEdit] = useState<CamposEntrada>(CAMPOS_ENTRADA_PADRAO)
+  // Fase 2 · Bloco 2: arquivamento (lead real não é excluído)
+  const [verArquivados, setVerArquivados] = useState(false)
+  const [motivoArquivo, setMotivoArquivo] = useState('')
+  const [arquivando, setArquivando] = useState(false)
 
   // F1-T09/desempenho: carrega UMA página do servidor (20 leads, 1 requisição) + contadores agregados
   const loadData = useCallback(async () => {
     try {
       const filtros: string[] = []
+      filtros.push(verArquivados ? 'arquivado = true' : 'arquivado != true')
       if (statusFilter !== 'Todos') filtros.push(`status='${statusFilter}'`)
       if (searchAplicada.trim()) {
         const t = searchAplicada.trim().replace(/'/g, "\\'")
@@ -199,7 +204,36 @@ export default function Leads() {
     } finally {
       setLoading(false)
     }
-  }, [toast, pagina, statusFilter, searchAplicada])
+  }, [toast, pagina, statusFilter, searchAplicada, verArquivados])
+
+  // Fase 2 · Bloco 2: arquivar / restaurar o lead aberto no modal de edição
+  const alternarArquivo = async () => {
+    if (!editLead) return
+    setArquivando(true)
+    try {
+      if (editLead.arquivado) {
+        await leadsService.restaurar(editLead.id)
+        toast({ title: 'Lead restaurado', description: 'O lead voltou para as listas.' })
+      } else {
+        await leadsService.arquivar(editLead.id, motivoArquivo)
+        toast({
+          title: 'Lead arquivado',
+          description: 'O lead saiu das listas e continua guardado na base.',
+        })
+      }
+      setEditLead(null)
+      setMotivoArquivo('')
+      loadData()
+    } catch (err) {
+      toast({
+        title: 'Não foi possível concluir',
+        description: err instanceof Error ? err.message : 'Ocorreu uma falha inesperada.',
+        variant: 'destructive',
+      })
+    } finally {
+      setArquivando(false)
+    }
+  }
 
   useEffect(() => {
     loadData()
@@ -636,6 +670,21 @@ export default function Leads() {
               {f === 'Todos' ? 'Todos' : STATUS_LABELS[f]}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => {
+              setVerArquivados((v) => !v)
+              setPagina(1)
+            }}
+            className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all ${
+              verArquivados
+                ? 'bg-[#6B7280] text-white border-[#6B7280] shadow-sm'
+                : 'bg-white text-[#6B7280] border-dashed border-[#D1D5DB] hover:bg-[#FAF7F2]'
+            }`}
+            title="Mostrar somente os leads arquivados"
+          >
+            Arquivados
+          </button>
         </div>
       </div>
 
@@ -952,6 +1001,60 @@ export default function Leads() {
 
           {/* F1-T19/T20/T21: timeline de interações até a proposta (grava na hora) */}
           {editLead && <TimelineInteracoes leadId={editLead.id} />}
+
+          {/* Fase 2 · Bloco 2: arquivar / restaurar (lead real não é excluído) */}
+          {editLead && (
+            <div className="mt-6 pt-4 border-t border-[#E5E7EB] space-y-2">
+              {editLead.arquivado ? (
+                <>
+                  <p className="text-xs text-[#6B7280]">
+                    Lead arquivado
+                    {editLead.arquivado_em
+                      ? ` em ${new Date(editLead.arquivado_em.replace(' ', 'T')).toLocaleDateString('pt-BR')}`
+                      : ''}
+                    {editLead.arquivado_motivo ? ` — motivo: ${editLead.arquivado_motivo}` : ''}.
+                  </p>
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={alternarArquivo}
+                      disabled={arquivando}
+                      className="px-4 py-2 rounded-xl text-xs font-semibold text-[#030507] bg-white border border-[#E5E7EB] hover:bg-[#FAF7F2] disabled:opacity-50"
+                    >
+                      {arquivando ? 'Restaurando…' : 'Restaurar lead'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-[#6B7280]">
+                    Arquivar lead
+                  </label>
+                  <p className="text-[11px] text-[#9CA3AF]">
+                    O lead sai das listas e dos contadores, mas continua guardado na base e pode ser
+                    restaurado. Leads reais não podem ser excluídos.
+                  </p>
+                  <input
+                    type="text"
+                    value={motivoArquivo}
+                    onChange={(e) => setMotivoArquivo(e.target.value)}
+                    placeholder="Motivo do arquivamento (obrigatório)"
+                    className="w-full px-3 py-2 rounded-xl border border-[#E5E7EB] text-xs text-[#030507] outline-none focus:border-[#DE6464]"
+                  />
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={alternarArquivo}
+                      disabled={arquivando || !motivoArquivo.trim()}
+                      className="px-4 py-2 rounded-xl text-xs font-semibold text-[#6B7280] bg-white border border-[#E5E7EB] hover:bg-[#FAF7F2] disabled:opacity-50"
+                    >
+                      {arquivando ? 'Arquivando…' : 'Arquivar lead'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
