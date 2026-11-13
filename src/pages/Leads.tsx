@@ -29,6 +29,10 @@ import {
 } from 'lucide-react'
 import TimelineInteracoes from '@/components/TimelineInteracoes'
 import { qualificar, justificativa } from '@/lib/qualificacao'
+import CamposEntradaLead, {
+  CAMPOS_ENTRADA_PADRAO,
+  type CamposEntrada,
+} from '@/components/CamposEntradaLead'
 import type { ResultadoQualificacao } from '@/lib/qualificacao'
 import {
   Dialog,
@@ -162,6 +166,9 @@ export default function Leads() {
     observacoes: '',
     telefone: '',
   })
+  // F2-T01: campos de entrada (área de interesse, país, idioma, modelo de compra)
+  const [entradaNovo, setEntradaNovo] = useState<CamposEntrada>(CAMPOS_ENTRADA_PADRAO)
+  const [entradaEdit, setEntradaEdit] = useState<CamposEntrada>(CAMPOS_ENTRADA_PADRAO)
 
   // F1-T09/desempenho: carrega UMA página do servidor (20 leads, 1 requisição) + contadores agregados
   const loadData = useCallback(async () => {
@@ -367,6 +374,12 @@ export default function Leads() {
       contato: lead.contato || '',
       telefone: lead.telefone || '',
     })
+    setEntradaEdit({
+      area_interesse: lead.area_interesse || '',
+      pais: lead.pais || '',
+      idioma: lead.idioma || '',
+      modelo_compra: lead.modelo_compra || '',
+    })
   }
 
   // F1-T08: salvar edição e requalificar (o hook anexa o resultado anterior ao histórico)
@@ -385,6 +398,11 @@ export default function Leads() {
         empresa: editForm.empresa,
         contato: editForm.contato,
         telefone: editForm.telefone,
+        // string vazia LIMPA o campo (o SDK omite undefined)
+        area_interesse: entradaEdit.area_interesse,
+        pais: entradaEdit.pais,
+        idioma: entradaEdit.idioma,
+        modelo_compra: entradaEdit.modelo_compra,
       })
       setEditLead(null)
       if (requalificar) {
@@ -468,6 +486,10 @@ export default function Leads() {
         urgencia: form.urgencia,
         observacoes: form.observacoes || undefined,
         telefone: form.telefone.trim() || undefined,
+        area_interesse: entradaNovo.area_interesse || undefined,
+        pais: entradaNovo.pais.trim() || 'Brasil',
+        idioma: entradaNovo.idioma || undefined,
+        modelo_compra: entradaNovo.modelo_compra || undefined,
         responsavel: user?.id,
         status: 'novo',
       })
@@ -487,6 +509,7 @@ export default function Leads() {
         observacoes: '',
         telefone: '',
       })
+      setEntradaNovo(CAMPOS_ENTRADA_PADRAO)
       setDuplicidade(null)
       setForcarCriacao(false)
       loadData()
@@ -824,6 +847,10 @@ export default function Leads() {
                 className="w-full px-3 py-2.5 rounded-xl border border-[#E5E7EB] text-xs text-[#030507] outline-none focus:border-[#DE6464]"
               />
             </div>
+            <CamposEntradaLead
+              valores={entradaEdit}
+              onChange={(p) => setEntradaEdit((v) => ({ ...v, ...p }))}
+            />
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-[#030507] mb-1">
                 Produto de interesse
@@ -1342,6 +1369,11 @@ export default function Leads() {
                 />
               </div>
             </div>
+
+            <CamposEntradaLead
+              valores={entradaNovo}
+              onChange={(p) => setEntradaNovo((v) => ({ ...v, ...p }))}
+            />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>

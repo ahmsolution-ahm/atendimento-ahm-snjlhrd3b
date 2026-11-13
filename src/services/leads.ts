@@ -21,6 +21,42 @@ const TENTATIVAS_PAGINA = 4
 
 type CamposBase = { contato?: string; empresa?: string; nome?: string }
 
+// F2-T08: importação pelo endpoint de lote do servidor (fallback: criação paralela)
+const LOTE_SERVIDOR = 250
+
+// campos gravados a partir de uma linha do CSV (mesmos nos dois caminhos de importação)
+function montarDadosLead(l: CsvLeadRow, produtoPorNome: Map<string, string>) {
+  const produtoId = l.produto_interesse
+    ? produtoPorNome.get(l.produto_interesse.trim().toLowerCase())
+    : undefined
+  const completo = !!(l.nome && l.empresa && l.contato)
+  // Bloco 4: telefone vai para o campo próprio (principal; na falta dele, o celular).
+  // Se houver os dois, o celular fica registrado nas observações.
+  const telefone = telefoneDaLinha(l)
+  const celularExtra = l.telefone && l.celular && l.celular !== l.telefone ? l.celular : ''
+  return {
+    nome: l.nome || '',
+    empresa: l.empresa || '',
+    contato: l.contato || '',
+    telefone,
+    origem: l.origem || 'Importação CSV',
+    produto_interesse: produtoId,
+    dor: l.dor,
+    urgencia: l.urgencia,
+    observacoes:
+      [l.cargo ? `Cargo: ${l.cargo}` : '', celularExtra ? `Celular: ${celularExtra}` : '']
+        .filter(Boolean)
+        .join(' · ') || undefined,
+    // F2-T01: campos de entrada (padrão Brasil / pt-BR para leads novos)
+    area_interesse: l.area_interesse || '',
+    pais: l.pais || 'Brasil',
+    idioma: l.idioma || 'pt-BR',
+    modelo_compra: l.modelo_compra || '',
+    status: (completo ? 'novo' : 'pendente') as 'novo' | 'pendente',
+    incompleto: !completo,
+  }
+}
+
 const statusDoErro = (err: unknown) =>
   typeof err === 'object' && err !== null && 'status' in err
     ? Number((err as { status: number }).status)
@@ -335,34 +371,71 @@ export const leadsService = {
     let criados = 0
     const falhas: LinhaInvalida[] = []
     let done = 0
-    let proximo = 0
 
-    const criarUm = async (l: CsvLeadRow) => {
-      const produtoId = l.produto_interesse
-        ? produtoPorNome.get(l.produto_interesse.trim().toLowerCase())
-        : undefined
-      const completo = !!(l.nome && l.empresa && l.contato)
-      // Bloco 4: telefone vai para o campo próprio (principal; na falta dele, o celular).
-      // Se houver os dois, o celular fica registrado nas observações.
-      const telefone = telefoneDaLinha(l)
-      const celularExtra = l.telefone && l.celular && l.celular !== l.telefone ? l.celular : ''
-      const dados = {
-        nome: l.nome || '',
-        empresa: l.empresa || '',
-        contato: l.contato || '',
-        telefone,
-        origem: l.origem || 'Importação CSV',
-        produto_interesse: produtoId,
-        dor: l.dor,
-        urgencia: l.urgencia,
-        observacoes:
-          [l.cargo ? `Cargo: ${l.cargo}` : '', celularExtra ? `Celular: ${celularExtra}` : '']
-            .filter(Boolean)
-            .join(' · ') || undefined,
-        responsavel,
-        status: completo ? 'novo' : 'pendente',
-        incompleto: !completo,
+    // F2-T08: 1º caminho — endpoint de lote no servidor (blocos de 250, uma transação cada).
+    // Só cai para a criação paralela se o endpoint não existir (404/405) antes de gravar algo.
+    let restantes = linhas
+    for (let i = 0; i < linhas.length; i += LOTE_SERVIDOR) {
+      const bloco = linhas.slice(i, i + LOTE_SERVIDOR)
+      const enviar = (itens: CsvLeadRow[]) =>
+        pb.send<{ criados: number; falhas: { indice: number; motivo: string }[] }>(
+          '/backend/v1/leads/lote',
+          {
+            method: 'POST',
+            body: { leads: itens.map((l) => montarDadosLead(l, produtoPorNome)) },
+            requestKey: null,
+          },
+        )
+      try {
+        let itens = bloco
+        let r
+        try {
+          r = await enviar(itens)
+        } catch (err) {
+          const s = statusDoErro(err)
+          if ((s === 404 || s === 405) && i === 0) throw err // endpoint indisponível
+          if (s >= 400 && s < 429) throw err
+          // falha temporária: o bloco pode ter sido gravado sem a resposta chegar —
+          // reconfere na base e reenvia SÓ o que ainda não existe (nunca duplica)
+          await esperar(1000)
+          const existentes = await this.chavesExistentesNaBase(itens)
+          itens = itens.filter(
+            (l) => !existentes.has(chaveDuplicidade(l.contato, l.empresa, l.nome)),
+          )
+          criados += bloco.length - itens.length
+          r = itens.length > 0 ? await enviar(itens) : { criados: 0, falhas: [] }
+        }
+        criados += r.criados
+        for (const f of r.falhas) {
+          const l = itens[f.indice]
+          if (l)
+            falhas.push({ linha: l.linha, motivo: f.motivo, dados: [l.nome, l.empresa, l.contato] })
+        }
+      } catch (err) {
+        const s = statusDoErro(err)
+        if ((s === 404 || s === 405) && i === 0) {
+          restantes = linhas // usa o caminho paralelo para tudo
+          break
+        }
+        const motivo =
+          typeof err === 'object' && err !== null && 'message' in err
+            ? String((err as { message: string }).message)
+            : 'Erro desconhecido.'
+        for (const l of bloco)
+          falhas.push({ linha: l.linha, motivo, dados: [l.nome, l.empresa, l.contato] })
       }
+      done += bloco.length
+      if (onProgress) onProgress(Math.min(done, linhas.length), linhas.length)
+      restantes = linhas.slice(i + LOTE_SERVIDOR)
+    }
+    if (restantes.length === 0) return { criados, falhas }
+    if (restantes !== linhas) return { criados, falhas } // não deveria acontecer
+    done = 0
+
+    // fallback (Bloco 5): criação paralela no navegador
+    let proximo = 0
+    const criarUm = async (l: CsvLeadRow) => {
+      const dados = { ...montarDadosLead(l, produtoPorNome), responsavel }
       for (let tentativa = 1; ; tentativa++) {
         try {
           // requestKey null: o SDK não cancela requisições paralelas à mesma coleção
@@ -413,6 +486,10 @@ export interface LeadInput {
   empresa: string
   contato: string
   telefone?: string
+  area_interesse?: string
+  pais?: string
+  idioma?: string
+  modelo_compra?: string
   origem?: string
   produto_interesse?: string
   dor?: string

@@ -93,6 +93,34 @@ export type LeadStatus =
   | 'fora do recorte'
   | 'transbordo'
 export type LeadUrgencia = 'Baixa' | 'Média' | 'Alta'
+// F2-T01 — emenda 1.2a: campos de entrada
+export type AreaInteresse = 'Qualidade no Transporte' | 'Cadeia do Frio' | 'Segurança e Logística'
+export type Idioma = 'pt-BR' | 'es' | 'en'
+export type ModeloCompra = 'Nacional' | 'Importação'
+
+// F2-T02/T03/T04 — emendas 1.2a e 1.2b: pipeline de duas trilhas
+export type AmbienteFechamento = 'Venda em reais' | 'Locação em reais' | 'Exportação (EUA)'
+export type Trilha = 'baixa' | 'alta'
+
+export interface PipelineEtapaRecord extends RecordModel {
+  trilha: Trilha
+  ordem: number
+  nome: string
+  fase: 'Pré-venda' | 'Venda' | 'Pós-venda'
+  taxa_alvo?: number
+}
+
+export interface OportunidadeEtapaRecord extends RecordModel {
+  oportunidade: string
+  etapa: string
+  entrou_em: string
+  saiu_em?: string
+  responsavel?: string
+  expand?: {
+    etapa?: PipelineEtapaRecord
+    responsavel?: UserRecord
+  }
+}
 
 export interface OportunidadeRecord extends RecordModel {
   lead: string
@@ -105,10 +133,18 @@ export interface OportunidadeRecord extends RecordModel {
   atualizado_em?: string
   decidido_em?: string
   decidido_por?: string
+  ambiente_fechamento?: AmbienteFechamento | ''
+  moeda?: 'BRL' | 'USD' | ''
+  entidade_vendedora?: 'AHM Brasil' | 'AHM Solution Americas' | ''
+  valor_estimado?: number
+  trilha?: Trilha | ''
+  etapa_atual?: string
+  etapa_desde?: string
   expand?: {
     lead?: LeadRecord
     produto?: ProdutoRecord
     decidido_por?: UserRecord
+    etapa_atual?: PipelineEtapaRecord
   }
 }
 
@@ -155,6 +191,10 @@ export interface LeadRecord extends RecordModel {
   empresa: string
   contato: string
   telefone?: string
+  area_interesse?: AreaInteresse | ''
+  pais?: string
+  idioma?: Idioma | ''
+  modelo_compra?: ModeloCompra | ''
   origem?: string
   produto_interesse?: string
   dor?: string

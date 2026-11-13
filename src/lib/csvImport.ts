@@ -14,8 +14,55 @@ export interface CsvLeadRow {
   cargo?: string
   telefone?: string
   celular?: string
+  // F2-T01 — emenda 1.2a: campos de entrada (colunas opcionais)
+  area_interesse?: string
+  pais?: string
+  idioma?: string
+  modelo_compra?: string
   linha: number
 }
+
+// F2-T01: valores aceitos nas colunas novas — comparação sem acento e sem maiúsculas,
+// com apelidos comuns; valor fora da lista torna a linha inválida (como a urgência).
+const semAcento = (s: string) =>
+  (s || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+
+const AREAS: Record<string, string> = {
+  'qualidade no transporte': 'Qualidade no Transporte',
+  'qualidade do transporte': 'Qualidade no Transporte',
+  transporte: 'Qualidade no Transporte',
+  'cadeia do frio': 'Cadeia do Frio',
+  'cadeia de frio': 'Cadeia do Frio',
+  frio: 'Cadeia do Frio',
+  'seguranca e logistica': 'Segurança e Logística',
+  seguranca: 'Segurança e Logística',
+  logistica: 'Segurança e Logística',
+}
+const IDIOMAS: Record<string, string> = {
+  'pt-br': 'pt-BR',
+  pt: 'pt-BR',
+  portugues: 'pt-BR',
+  portuguese: 'pt-BR',
+  es: 'es',
+  espanhol: 'es',
+  spanish: 'es',
+  en: 'en',
+  ingles: 'en',
+  english: 'en',
+}
+const MODELOS: Record<string, string> = {
+  nacional: 'Nacional',
+  importacao: 'Importação',
+  importado: 'Importação',
+}
+
+export const normalizarArea = (v?: string) => (v ? AREAS[semAcento(v)] : undefined)
+export const normalizarIdioma = (v?: string) => (v ? IDIOMAS[semAcento(v)] : undefined)
+export const normalizarModeloCompra = (v?: string) => (v ? MODELOS[semAcento(v)] : undefined)
 
 export interface LinhaInvalida {
   linha: number
@@ -75,6 +122,19 @@ const HEADER_MAP: Record<string, keyof CsvLeadRow> = {
   cargo: 'cargo',
   'cargo / função': 'cargo',
   job: 'cargo',
+  // F2-T01
+  'área de interesse': 'area_interesse',
+  'area de interesse': 'area_interesse',
+  area_interesse: 'area_interesse',
+  área: 'area_interesse',
+  area: 'area_interesse',
+  país: 'pais',
+  pais: 'pais',
+  country: 'pais',
+  idioma: 'idioma',
+  language: 'idioma',
+  'modelo de compra': 'modelo_compra',
+  modelo_compra: 'modelo_compra',
 }
 
 function stripBom(s: string): string {
@@ -211,6 +271,34 @@ export function validarLinhas(
       })
       return
     }
+    // F2-T01: colunas novas opcionais — valor fora da lista torna a linha inválida
+    const area = normalizarArea(rec.area_interesse)
+    if (rec.area_interesse && !area) {
+      invalidas.push({
+        linha,
+        motivo: `Área de interesse inválida: ${rec.area_interesse} (use Qualidade no Transporte, Cadeia do Frio ou Segurança e Logística)`,
+        dados: row.slice(0, 4),
+      })
+      return
+    }
+    const idioma = normalizarIdioma(rec.idioma)
+    if (rec.idioma && !idioma) {
+      invalidas.push({
+        linha,
+        motivo: `Idioma inválido: ${rec.idioma} (use pt-BR, es ou en)`,
+        dados: row.slice(0, 4),
+      })
+      return
+    }
+    const modelo = normalizarModeloCompra(rec.modelo_compra)
+    if (rec.modelo_compra && !modelo) {
+      invalidas.push({
+        linha,
+        motivo: `Modelo de compra inválido: ${rec.modelo_compra} (use Nacional ou Importação)`,
+        dados: row.slice(0, 4),
+      })
+      return
+    }
 
     validas.push({
       nome: rec.nome || '',
@@ -223,6 +311,10 @@ export function validarLinhas(
       cargo: rec.cargo || undefined,
       telefone: rec.telefone || undefined,
       celular: rec.celular || undefined,
+      area_interesse: area,
+      pais: rec.pais || undefined,
+      idioma,
+      modelo_compra: modelo,
       linha,
     })
   })

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-12T22:14:31.989Z",
+  "generatedAt": "2026-11-13T00:59:56.133Z",
   "collections": [
     {
       "name": "users",
@@ -29,14 +29,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -84,21 +89,36 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Aberto", "Em andamento", "Resolvido", "Fechado"]
+          "selectValues": [
+            "Aberto",
+            "Em andamento",
+            "Resolvido",
+            "Fechado"
+          ]
         },
         {
           "name": "prioridade",
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Baixa", "Média", "Alta", "Urgente"]
+          "selectValues": [
+            "Baixa",
+            "Média",
+            "Alta",
+            "Urgente"
+          ]
         },
         {
           "name": "canal",
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Email", "Telefone", "WhatsApp", "Chat"]
+          "selectValues": [
+            "Email",
+            "Telefone",
+            "WhatsApp",
+            "Chat"
+          ]
         },
         {
           "name": "responsavel",
@@ -119,14 +139,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -167,14 +192,23 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Ativo", "Aguardando resposta", "Encerrado"]
+          "selectValues": [
+            "Ativo",
+            "Aguardando resposta",
+            "Encerrado"
+          ]
         },
         {
           "name": "canal",
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Email", "Telefone", "WhatsApp", "Chat"]
+          "selectValues": [
+            "Email",
+            "Telefone",
+            "WhatsApp",
+            "Chat"
+          ]
         },
         {
           "name": "inicio_atendimento",
@@ -193,14 +227,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -244,17 +283,24 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE INDEX idx_comentarios_ticket ON comentarios (ticket)"]
+      "indexes": [
+        "CREATE INDEX idx_comentarios_ticket ON comentarios (ticket)"
+      ]
     },
     {
       "name": "logs_tickets",
@@ -298,17 +344,24 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE INDEX idx_logs_tickets_ticket ON logs_tickets (ticket)"]
+      "indexes": [
+        "CREATE INDEX idx_logs_tickets_ticket ON logs_tickets (ticket)"
+      ]
     },
     {
       "name": "produtos",
@@ -338,7 +391,10 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Recorrente", "Pontual"]
+          "selectValues": [
+            "Recorrente",
+            "Pontual"
+          ]
         },
         {
           "name": "icp",
@@ -381,7 +437,10 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Baixa", "Alta"]
+          "selectValues": [
+            "Baixa",
+            "Alta"
+          ]
         },
         {
           "name": "especialista",
@@ -395,7 +454,10 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Ativo", "Inativo"]
+          "selectValues": [
+            "Ativo",
+            "Inativo"
+          ]
         },
         {
           "name": "incompleto",
@@ -408,14 +470,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "familia_tecnologica",
@@ -502,24 +569,34 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Baixa", "Alta"]
+          "selectValues": [
+            "Baixa",
+            "Alta"
+          ]
         },
         {
           "name": "created",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE INDEX idx_modelos_nome ON modelos_negocio (nome)"]
+      "indexes": [
+        "CREATE INDEX idx_modelos_nome ON modelos_negocio (nome)"
+      ]
     },
     {
       "name": "templates_diagnostico",
@@ -592,17 +669,24 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE INDEX idx_templates_familia ON templates_diagnostico (familia)"]
+      "indexes": [
+        "CREATE INDEX idx_templates_familia ON templates_diagnostico (familia)"
+      ]
     },
     {
       "name": "leads",
@@ -657,7 +741,11 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["Baixa", "Média", "Alta"]
+          "selectValues": [
+            "Baixa",
+            "Média",
+            "Alta"
+          ]
         },
         {
           "name": "observacoes",
@@ -697,14 +785,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "qualificacao_resultado",
@@ -742,13 +835,54 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["manual", "automatica"]
+          "selectValues": [
+            "manual",
+            "automatica"
+          ]
         },
         {
           "name": "telefone",
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "area_interesse",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Qualidade no Transporte",
+            "Cadeia do Frio",
+            "Segurança e Logística"
+          ]
+        },
+        {
+          "name": "pais",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "idioma",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "pt-BR",
+            "es",
+            "en"
+          ]
+        },
+        {
+          "name": "modelo_compra",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Nacional",
+            "Importação"
+          ]
         }
       ],
       "indexes": [
@@ -800,7 +934,11 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Pendente atribuição", "Aberto", "Resolvido"]
+          "selectValues": [
+            "Pendente atribuição",
+            "Aberto",
+            "Resolvido"
+          ]
         },
         {
           "name": "comentario",
@@ -832,14 +970,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
@@ -883,14 +1026,23 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["alta", "média", "baixa"]
+          "selectValues": [
+            "alta",
+            "média",
+            "baixa"
+          ]
         },
         {
           "name": "status",
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Sugerida", "Aprovada", "Rejeitada", "Em revisão"]
+          "selectValues": [
+            "Sugerida",
+            "Aprovada",
+            "Rejeitada",
+            "Em revisão"
+          ]
         },
         {
           "name": "comentario",
@@ -915,14 +1067,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "decidido_em",
@@ -932,6 +1089,73 @@
         },
         {
           "name": "decidido_por",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "ambiente_fechamento",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Venda em reais",
+            "Locação em reais",
+            "Exportação (EUA)"
+          ]
+        },
+        {
+          "name": "moeda",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "BRL",
+            "USD"
+          ]
+        },
+        {
+          "name": "entidade_vendedora",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "AHM Brasil",
+            "AHM Solution Americas"
+          ]
+        },
+        {
+          "name": "valor_estimado",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "trilha",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "baixa",
+            "alta"
+          ]
+        },
+        {
+          "name": "etapa_atual",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "pipeline_etapas"
+        },
+        {
+          "name": "etapa_desde",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "etapa_por",
           "type": "relation",
           "required": false,
           "system": false,
@@ -967,7 +1191,14 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Ligação", "Reunião", "E-mail", "WhatsApp", "Visita", "Outro"]
+          "selectValues": [
+            "Ligação",
+            "Reunião",
+            "E-mail",
+            "WhatsApp",
+            "Visita",
+            "Outro"
+          ]
         },
         {
           "name": "data",
@@ -1030,17 +1261,176 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE INDEX idx_interacoes_lead_data ON interacoes (lead, data)"]
+      "indexes": [
+        "CREATE INDEX idx_interacoes_lead_data ON interacoes (lead, data)"
+      ]
+    },
+    {
+      "name": "pipeline_etapas",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "trilha",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "baixa",
+            "alta"
+          ]
+        },
+        {
+          "name": "ordem",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "fase",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Pré-venda",
+            "Venda",
+            "Pós-venda"
+          ]
+        },
+        {
+          "name": "taxa_alvo",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "complexidade",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Baixa",
+            "Alta"
+          ]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_pipeline_etapas_trilha_ordem ON pipeline_etapas (trilha, ordem)"
+      ]
+    },
+    {
+      "name": "oportunidade_etapas",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "oportunidade",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "oportunidades"
+        },
+        {
+          "name": "etapa",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "pipeline_etapas"
+        },
+        {
+          "name": "entrou_em",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "saiu_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "responsavel",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_oportunidade_etapas_op ON oportunidade_etapas (oportunidade, entrou_em)"
+      ]
     }
   ]
 }

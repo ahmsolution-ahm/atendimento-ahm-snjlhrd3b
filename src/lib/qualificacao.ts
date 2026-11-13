@@ -29,6 +29,43 @@ export interface LeadQualificacao {
   origem?: string
   status: string
   incompleto?: boolean
+  area_interesse?: string
+}
+
+// F2-T01 — emenda 1.2a §4: a área de interesse (porta de entrada do marketing) SUGERE as
+// famílias de diagnóstico candidatas; a família final vem do produto. Sugestão, não bloqueio.
+const FAMILIAS_POR_AREA: Record<string, string[]> = {
+  'Qualidade no Transporte': ['1', '3', '6', '7'],
+  'Cadeia do Frio': ['2'],
+  'Segurança e Logística': ['4', '4a', '5'],
+}
+
+export function familiasPorArea(area?: string): string[] {
+  return (area && FAMILIAS_POR_AREA[area]) || []
+}
+
+// "1, 3, 6 e 7"
+const listaPtBr = (itens: string[]) =>
+  itens.length <= 1
+    ? itens.join('')
+    : `${itens.slice(0, -1).join(', ')} e ${itens[itens.length - 1]}`
+
+export function sugestaoFamilias(area?: string): string {
+  const familias = familiasPorArea(area)
+  if (familias.length === 0) return ''
+  return familias.length === 1
+    ? `Área de interesse ${area} — família de diagnóstico sugerida: ${familias[0]}`
+    : `Área de interesse ${area} — famílias de diagnóstico sugeridas: ${listaPtBr(familias)}`
+}
+
+// motor + sugestão de famílias pela área de interesse (quando informada)
+export function qualificar(
+  lead: LeadQualificacao,
+  produto: ProdutoQualificacao | null,
+): ResultadoQualificacao {
+  const r = qualificarRegras(lead, produto)
+  const sugestao = sugestaoFamilias(lead.area_interesse)
+  return sugestao ? { ...r, motivos: [...r.motivos, sugestao] } : r
 }
 
 export interface ResultadoQualificacao {
@@ -56,7 +93,7 @@ const SINAIS_COMPLEXOS = [
   'diversas plantas',
 ]
 
-export function qualificar(
+function qualificarRegras(
   lead: LeadQualificacao,
   produto: ProdutoQualificacao | null,
 ): ResultadoQualificacao {
