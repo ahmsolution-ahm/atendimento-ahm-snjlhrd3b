@@ -33,10 +33,9 @@ onRecordDeleteRequest(
       lead = null
     }
 
-    const marcado = (s) => {
-      const t = (s || '').trim().toUpperCase()
-      return t.indexOf('PROVA') === 0 || t.indexOf('DEMO') === 0
-    }
+    // Bloco 3: marcador como PALAVRA INTEIRA — "PROVA …", "DEMO —" sim; empresas reais como
+    // "Demolidora" ou "Provale" não (antes o prefixo solto as tornava apagáveis).
+    const marcado = (s) => /^(PROVA|DEMO)(?![A-ZÀ-ÖØ-Þ])/.test((s || '').trim().toUpperCase())
     const prova = !!lead && (marcado(lead.getString('nome')) || marcado(lead.getString('empresa')))
 
     if (!prova) {
