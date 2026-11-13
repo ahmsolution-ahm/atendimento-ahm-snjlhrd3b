@@ -141,17 +141,15 @@ export const oportunidadesService = {
     respostas: { item: string; marcado: boolean; observacao?: string }[],
   ): Promise<void> {
     for (const r of respostas) {
-      await pb
-        .collection('etapa_checklist_respostas')
-        .create(
-          {
-            historico: historicoId,
-            item: r.item,
-            marcado: r.marcado,
-            observacao: r.observacao || '',
-          },
-          { requestKey: null },
-        )
+      await pb.collection('etapa_checklist_respostas').create(
+        {
+          historico: historicoId,
+          item: r.item,
+          marcado: r.marcado,
+          observacao: r.observacao || '',
+        },
+        { requestKey: null },
+      )
     }
   },
 
