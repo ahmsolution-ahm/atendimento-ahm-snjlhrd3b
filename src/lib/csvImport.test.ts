@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   chaveDuplicidade,
+  chavesDoRegistroBase,
   detectarDuplicadasNoArquivo,
   mapearCabecalhos,
   mensagemImportacao,
@@ -122,6 +123,35 @@ describe('seleção dos leads novos', () => {
     const arquivo = [linha(2, 'a@x.com', 'X'), linha(3, '', 'Y', 'Rascunho Sem Email')]
     const base = new Set(arquivo.map((l) => chaveDuplicidade(l.contato, l.empresa, l.nome)))
     expect(selecionarNovos(arquivo, base).novos).toHaveLength(0)
+  })
+
+  // D1 (0.0.59): cenário da prova do Bart — linha sem e-mail de um lead que existe COM e-mail
+  it('linha sem e-mail reconhece lead da base cadastrado com e-mail (nome + empresa)', () => {
+    const base = new Set(
+      chavesDoRegistroBase('aroldo@stellantis.com', 'Stellantis (Mopar)', 'Aroldo Teles da Silva'),
+    )
+    const r = selecionarNovos([linha(2, '', 'Stellantis (Mopar)', 'AROLDO TELES DA SILVA')], base)
+    expect(r.novos).toHaveLength(0)
+    expect(r.duplicadasNaBase).toHaveLength(1)
+  })
+
+  it('mesmo nome e empresa com OUTRO e-mail continua sendo lead novo', () => {
+    const base = new Set(chavesDoRegistroBase('ana@alfa.com.br', 'Alfa', 'Ana Souza'))
+    const r = selecionarNovos([linha(2, 'ana.souza@alfa.com.br', 'Alfa', 'Ana Souza')], base)
+    expect(r.novos).toHaveLength(1)
+  })
+
+  it('no próprio arquivo: linha sem e-mail depois da mesma pessoa com e-mail é repetida', () => {
+    const r = selecionarNovos(
+      [linha(2, 'ana@alfa.com.br', 'Alfa', 'Ana Souza'), linha(3, '', 'Alfa', 'Ana Souza')],
+      new Set(),
+    )
+    expect(r.novos.map((l) => l.linha)).toEqual([2])
+    expect(r.duplicadasNoArquivo.map((l) => l.linha)).toEqual([3])
+  })
+
+  it('registro da base sem nome não gera chave secundária (não casa rascunhos genéricos)', () => {
+    expect(chavesDoRegistroBase('a@x.com', 'X', '')).toEqual([chaveDuplicidade('a@x.com', 'X')])
   })
 
   it('todas as válidas caem em exatamente um grupo', () => {

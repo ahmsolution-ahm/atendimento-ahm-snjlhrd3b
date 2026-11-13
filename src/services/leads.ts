@@ -1,7 +1,8 @@
 import pb from '@/lib/pocketbase/client'
 import type { LeadRecord } from '@/types'
 import type { CsvLeadRow, LinhaInvalida } from '@/lib/csvImport'
-import { chaveDuplicidade, telefoneDaLinha } from '@/lib/csvImport'
+import { chaveDuplicidade, chavesDoRegistroBase, telefoneDaLinha } from '@/lib/csvImport'
+import { comTentativas, lerTodasPaginas } from '@/lib/paginacao'
 
 // Bloco 4: verificação de duplicidade da importação contra a BASE COMPLETA
 const LOTE_CONTATOS = 30 // contatos por consulta (expressão de filtro com OR)
@@ -11,6 +12,54 @@ const PAGINA_VARREDURA = 1000
 const CRIACOES_SIMULTANEAS = 10
 
 const esperar = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+// Bloco 5 (0.0.59, D2): verificação de duplicidade DETERMINÍSTICA.
+// Cada página é buscada com requestKey null (o SDK não cancela consultas simultâneas à mesma
+// coleção) e até 4 tentativas com espera crescente. Qualquer falha definitiva propaga o erro,
+// e a tela trata como "verificação falhou" → importação bloqueada.
+const TENTATIVAS_PAGINA = 4
+
+type CamposBase = { contato?: string; empresa?: string; nome?: string }
+
+const statusDoErro = (err: unknown) =>
+  typeof err === 'object' && err !== null && 'status' in err
+    ? Number((err as { status: number }).status)
+    : 0
+
+/**
+ * Lê TODAS as páginas de uma consulta a leads com conferência de cobertura (lerTodasPaginas).
+ * Ordenação por created,id: registros criados durante a leitura vão para o fim e não
+ * deslocam as páginas já lidas. requestKey null: o SDK não cancela consultas simultâneas.
+ */
+async function lerTudo(
+  porPagina: number,
+  opcoes: { filter?: string; fields: string },
+  aoLer: (itens: CamposBase[]) => void,
+): Promise<void> {
+  await lerTodasPaginas<CamposBase>(
+    (pagina, comTotal) =>
+      comTentativas(
+        () =>
+          pb.collection('leads').getList<LeadRecord & CamposBase>(pagina, porPagina, {
+            filter: opcoes.filter,
+            fields: opcoes.fields,
+            sort: 'created,id',
+            skipTotal: !comTotal,
+            requestKey: null,
+          }),
+        TENTATIVAS_PAGINA,
+        // 400–428 = consulta inválida: repetir não resolve
+        (err) => {
+          const s = statusDoErro(err)
+          return s >= 400 && s < 429
+        },
+        (err, tentativa) => (statusDoErro(err) === 429 ? 1500 * tentativa : 500 * tentativa),
+        esperar,
+      ),
+    porPagina,
+    aoLer,
+  )
+}
 
 export interface ImportPreview {
   total: number
@@ -232,10 +281,13 @@ export const leadsService = {
     const existentes = new Set<string>()
     if (chavesArquivo.size === 0) return existentes
 
-    const registrar = (itens: { contato?: string; empresa?: string; nome?: string }[]) => {
+    // D1 (0.0.59): cada registro da base gera a chave principal E a secundária nome+empresa,
+    // para que uma linha SEM e-mail reconheça um lead que existe COM e-mail.
+    const registrar = (itens: CamposBase[]) => {
       for (const it of itens) {
-        const k = chaveDuplicidade(it.contato || '', it.empresa || '', it.nome || '')
-        if (chavesArquivo.has(k)) existentes.add(k)
+        for (const k of chavesDoRegistroBase(it.contato || '', it.empresa || '', it.nome || '')) {
+          if (chavesArquivo.has(k)) existentes.add(k)
+        }
       }
     }
 
@@ -250,32 +302,22 @@ export const leadsService = {
         lotes.push(contatos.slice(i, i + LOTE_CONTATOS))
       }
       await Promise.all(
-        lotes.map(async (lote) => {
-          // "~" compara sem diferenciar maiúsculas; o filtro exato é feito em registrar()
-          const filter = lote.map((c) => pb.filter('contato ~ {:c}', { c })).join(' || ')
-          for (let pagina = 1; ; pagina++) {
-            const r = await pb.collection('leads').getList<LeadRecord>(pagina, 500, {
-              filter,
-              fields: 'contato,empresa',
-              skipTotal: true,
-            })
-            registrar(r.items)
-            if (r.items.length < 500) break
-          }
-        }),
+        lotes.map((lote) =>
+          lerTudo(
+            500,
+            {
+              // "~" compara sem diferenciar maiúsculas; o filtro exato é feito em registrar()
+              filter: lote.map((c) => pb.filter('contato ~ {:c}', { c })).join(' || '),
+              fields: 'contato,empresa,nome',
+            },
+            registrar,
+          ),
+        ),
       )
       return existentes
     }
 
-    for (let pagina = 1; ; pagina++) {
-      const r = await pb.collection('leads').getList<LeadRecord>(pagina, PAGINA_VARREDURA, {
-        fields: 'contato,empresa,nome',
-        sort: 'id',
-        skipTotal: true,
-      })
-      registrar(r.items)
-      if (r.items.length < PAGINA_VARREDURA) break
-    }
+    await lerTudo(PAGINA_VARREDURA, { fields: 'contato,empresa,nome' }, registrar)
     return existentes
   },
 

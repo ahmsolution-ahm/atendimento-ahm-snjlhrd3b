@@ -1181,6 +1181,19 @@ export default function Leads() {
                   {importPreview.duplicadasNoArquivo.length > 0 &&
                     `${importPreview.duplicadasNoArquivo.length === 1 ? '1 repetida' : `${importPreview.duplicadasNoArquivo.length.toLocaleString('pt-BR')} repetidas`} dentro do próprio arquivo`}
                   . A importação gravará somente os leads novos. Os duplicados serão ignorados.
+                  {(() => {
+                    // D1 (0.0.59): transparência sobre o reconhecimento por nome + empresa
+                    const semEmail = importPreview.duplicadasNaBase.filter(
+                      (l) => !l.contato.trim(),
+                    ).length
+                    return semEmail > 0 ? (
+                      <span className="block mt-1">
+                        {semEmail === 1
+                          ? '1 linha sem e-mail foi reconhecida pelo nome e pela empresa de um lead já cadastrado.'
+                          : `${semEmail.toLocaleString('pt-BR')} linhas sem e-mail foram reconhecidas pelo nome e pela empresa de leads já cadastrados.`}
+                      </span>
+                    ) : null
+                  })()}
                 </div>
               </div>
             )}

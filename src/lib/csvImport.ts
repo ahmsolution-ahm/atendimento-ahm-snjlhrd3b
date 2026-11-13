@@ -241,6 +241,21 @@ export function chaveDuplicidade(contato: string, empresa: string, nome: string 
   return `nome:${(nome || '').trim().toLowerCase()}|${e}`
 }
 
+/**
+ * D1 (0.0.59): chaves que um registro JÁ EXISTENTE na base representa. Além da chave
+ * principal, um registro com nome gera a chave secundária nome + empresa — assim uma linha
+ * do arquivo SEM e-mail reconhece o lead que existe na base COM e-mail.
+ */
+export function chavesDoRegistroBase(contato: string, empresa: string, nome: string): string[] {
+  const principal = chaveDuplicidade(contato, empresa, nome)
+  const chaves = [principal]
+  if ((nome || '').trim()) {
+    const secundaria = chaveDuplicidade('', empresa, nome)
+    if (secundaria !== principal) chaves.push(secundaria)
+  }
+  return chaves
+}
+
 export interface SelecaoImportacao {
   novos: CsvLeadRow[]
   duplicadasNaBase: CsvLeadRow[]
@@ -260,7 +275,8 @@ export function selecionarNovos(validas: CsvLeadRow[], chavesBase: Set<string>):
     if (chavesBase.has(k)) r.duplicadasNaBase.push(l)
     else if (vistas.has(k)) r.duplicadasNoArquivo.push(l)
     else {
-      vistas.add(k)
+      // a linha aceita passa a "existir": registra as mesmas chaves de um registro da base
+      for (const kk of chavesDoRegistroBase(l.contato, l.empresa, l.nome)) vistas.add(kk)
       r.novos.push(l)
     }
   }
