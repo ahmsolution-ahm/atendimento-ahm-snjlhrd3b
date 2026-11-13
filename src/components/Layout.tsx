@@ -428,8 +428,8 @@ export default function Layout() {
                 <p className="text-xs font-bold text-[#030507] leading-tight">
                   {user?.name || 'Usuário'}
                 </p>
-                <span className="text-[10px] text-[#10B981] font-semibold flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" /> Online
+                <span className="text-[11px] text-[#6B7280] font-semibold">
+                  {isAdmin ? 'Administrador' : 'Vendedor'}
                 </span>
               </div>
             </div>
@@ -447,7 +447,7 @@ export default function Layout() {
             <span className="font-semibold text-[#030507]">AHM Solution</span> — Suporte Comercial &
             Logística Integrada
           </div>
-          <div>© {new Date().getFullYear()} Todos os direitos reservados. v1.0.0</div>
+          <div>© {new Date().getFullYear()} Todos os direitos reservados.</div>
         </footer>
       </div>
 

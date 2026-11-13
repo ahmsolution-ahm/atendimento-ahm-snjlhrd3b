@@ -16,7 +16,6 @@ import {
   Linkedin,
   Instagram,
   Globe,
-  Info,
 } from 'lucide-react'
 import {
   Dialog,
@@ -27,14 +26,15 @@ import {
 } from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
 
+// Segurança (Bloco A): a tela de login não exibe nem pré-preenche credencial alguma.
 export default function Login() {
   const { login, isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const { toast } = useToast()
 
-  const [email, setEmail] = useState('afonso.moreira@ahmsolution.com')
-  const [password, setPassword] = useState('Skip@Pass')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(true)
 
@@ -67,7 +67,7 @@ export default function Login() {
     setErrorMessage('')
 
     if (!isEmailValid) {
-      triggerError('Por favor, informe um email corporativo válido.')
+      triggerError('Por favor, informe um e-mail corporativo válido.')
       return
     }
 
@@ -89,9 +89,9 @@ export default function Login() {
       const msg =
         err instanceof Error && err.message
           ? err.message
-          : 'Credenciais inválidas. Verifique seu email corporativo e senha.'
+          : 'Credenciais inválidas. Verifique seu e-mail corporativo e senha.'
       triggerError(
-        msg.includes('Failed to authenticate') ? 'Email corporativo ou senha incorretos.' : msg,
+        msg.includes('Failed to authenticate') ? 'E-mail corporativo ou senha incorretos.' : msg,
       )
     } finally {
       setIsLoading(false)
@@ -227,26 +227,13 @@ export default function Login() {
               Acesse sua conta
             </h2>
             <p className="text-sm text-[#6B7280] mt-1.5">
-              Entre com suas credenciais para acessar o sistema
+              Entre com o seu e-mail corporativo e a sua senha.
             </p>
-          </div>
-
-          <div className="mb-6 p-3 rounded-xl bg-[#FAF7F2] border border-[#E5E7EB] flex items-start gap-2.5 text-xs text-[#030507]">
-            <Info className="w-4 h-4 text-[#DE6464] shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-[#030507]">Acesso de Demonstração / Comercial:</p>
-              <p className="text-[#6B7280]">
-                Email:{' '}
-                <span className="font-mono text-[#030507]">afonso.moreira@ahmsolution.com</span>
-                <br />
-                Senha: <span className="font-mono text-[#030507]">Skip@Pass</span>
-              </p>
-            </div>
           </div>
 
           {errorMessage && (
             <div
-              className={`mb-5 p-3.5 rounded-xl bg-red-50 border border-red-200 text-[#DC2626] text-xs flex items-center gap-2.5 ${
+              className={`mb-5 p-3.5 rounded-xl bg-red-50 border border-red-200 text-[#DC2626] text-sm flex items-center gap-2.5 ${
                 shakeError ? 'animate-shake' : ''
               }`}
             >
@@ -261,7 +248,7 @@ export default function Login() {
                 htmlFor="corporate-email"
                 className="block text-xs font-semibold uppercase tracking-wider text-[#030507] mb-2"
               >
-                Email corporativo
+                E-mail corporativo
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#9CA3AF]">
@@ -270,12 +257,13 @@ export default function Login() {
                 <input
                   id="corporate-email"
                   type="email"
+                  autoComplete="username"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   onBlur={() => setTouched({ ...touched, email: true })}
-                  placeholder="nome@ahmsolution.com.br"
+                  placeholder="nome@ahmsolution.com"
                   required
-                  className={`w-full pl-11 pr-4 py-3 rounded-xl border text-sm text-[#030507] bg-white transition-all outline-none focus:ring-2 focus:ring-[#DE6464]/30 ${
+                  className={`w-full pl-11 pr-4 py-3 rounded-xl border text-base text-[#030507] bg-white transition-all outline-none focus:ring-2 focus:ring-[#DE6464]/30 ${
                     touched.email && !isEmailValid
                       ? 'border-[#DC2626] focus:border-[#DC2626]'
                       : 'border-[#E5E7EB] focus:border-[#DE6464]'
@@ -284,7 +272,7 @@ export default function Login() {
               </div>
               {touched.email && !isEmailValid && (
                 <p className="text-xs text-[#DC2626] mt-1.5 pl-1">
-                  Digite um endereço de email válido.
+                  Digite um endereço de e-mail válido.
                 </p>
               )}
             </div>
@@ -313,12 +301,13 @@ export default function Login() {
                 <input
                   id="user-password"
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   onBlur={() => setTouched({ ...touched, password: true })}
                   placeholder="••••••••"
                   required
-                  className={`w-full pl-11 pr-11 py-3 rounded-xl border text-sm text-[#030507] bg-white transition-all outline-none focus:ring-2 focus:ring-[#DE6464]/30 ${
+                  className={`w-full pl-11 pr-11 py-3 rounded-xl border text-base text-[#030507] bg-white transition-all outline-none focus:ring-2 focus:ring-[#DE6464]/30 ${
                     touched.password && !isPasswordValid
                       ? 'border-[#DC2626] focus:border-[#DC2626]'
                       : 'border-[#E5E7EB] focus:border-[#DE6464]'
@@ -352,14 +341,14 @@ export default function Login() {
                   onChange={(e) => setRememberMe(e.target.checked)}
                   className="w-4 h-4 rounded border-[#E5E7EB] text-[#DE6464] focus:ring-[#DE6464] cursor-pointer accent-[#DE6464]"
                 />
-                <span className="text-xs font-medium text-[#6B7280]">Manter-me conectado</span>
+                <span className="text-sm font-medium text-[#6B7280]">Manter-me conectado</span>
               </label>
             </div>
 
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3.5 px-6 rounded-xl font-semibold text-sm text-white shadow-md transition-all duration-150 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed hover:bg-[#D45555] active:scale-[0.99]"
+              className="w-full py-3.5 px-6 rounded-xl font-semibold text-base text-white shadow-md transition-all duration-150 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed hover:bg-[#D45555] active:scale-[0.99]"
               style={{ backgroundColor: '#DE6464' }}
             >
               {isLoading ? (
@@ -382,8 +371,8 @@ export default function Login() {
             </div>
           </div>
 
-          <div className="text-center text-xs text-[#6B7280]">
-            Novo por aqui? Fale com o administrador.{' '}
+          <div className="text-center text-sm text-[#6B7280]">
+            Ainda não tem acesso?{' '}
             <button
               type="button"
               onClick={() => setRequestAccessModalOpen(true)}
@@ -396,7 +385,7 @@ export default function Login() {
         </div>
       </div>
 
-      {/* Modal Solicitar Acesso */}
+      {/* Modal Solicitar Acesso — o cadastro é feito pelo administrador (tela Equipe) */}
       <Dialog open={requestAccessModalOpen} onOpenChange={setRequestAccessModalOpen}>
         <DialogContent className="max-w-md bg-white p-6 rounded-2xl modal-ahm">
           <DialogHeader>
@@ -404,30 +393,24 @@ export default function Login() {
               <HelpCircle className="w-5 h-5" />
             </div>
             <DialogTitle className="text-lg font-bold text-[#030507]">
-              Solicitação de Acesso ao Sistema
+              Como solicitar acesso
             </DialogTitle>
-            <DialogDescription className="text-xs text-[#6B7280] leading-relaxed">
-              O acesso ao Portal de Atendimento é restrito a colaboradores e representantes
-              autorizados da AHM Solution.
+            <DialogDescription className="text-sm text-[#6B7280] leading-relaxed">
+              O acesso é restrito a colaboradores autorizados da AHM Solution e é liberado pelo
+              administrador do sistema.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="mt-4 space-y-3.5 text-xs text-[#030507]">
+          <div className="mt-4 space-y-3.5 text-sm text-[#030507]">
             <div className="p-3.5 rounded-xl bg-[#FAF7F2] border border-[#E5E7EB]">
-              <p className="font-semibold text-[#030507] mb-1">
-                Contatos do Administrador de TI / RH:
-              </p>
+              <p className="font-semibold text-[#030507] mb-1">Fale com o seu gestor</p>
               <p className="text-[#6B7280] leading-relaxed">
-                • Email:{' '}
-                <span className="font-medium text-[#030507]">suporte.ti@ahmsolution.com.br</span>
-                <br />• Telefone interno:{' '}
-                <span className="font-medium text-[#030507]">(11) 3456-7890 (Ramal 204)</span>
-                <br />• Horário: Segunda a Sexta, das 08h às 18h
+                Peça ao seu gestor que solicite o seu cadastro ao administrador do sistema,
+                informando o seu nome completo, o seu e-mail corporativo e a sua área.
               </p>
             </div>
             <p className="text-[#6B7280]">
-              Ao solicitar, informe seu nome completo, departamento (ex: Comercial, Operações) e seu
-              gestor imediato para aprovação célere.
+              Assim que o cadastro for feito, você receberá a sua senha inicial para entrar.
             </p>
           </div>
 
@@ -435,7 +418,7 @@ export default function Login() {
             <button
               type="button"
               onClick={() => setRequestAccessModalOpen(false)}
-              className="px-5 py-2.5 rounded-xl text-xs font-semibold text-white transition-colors"
+              className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors"
               style={{ backgroundColor: '#DE6464' }}
             >
               Entendido
