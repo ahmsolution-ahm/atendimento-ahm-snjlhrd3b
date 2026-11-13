@@ -56,7 +56,11 @@ onRecordDeleteRequest(
     }
     const descricao = (rotulos[col] || col) + ' do lead "' + lead.getString('nome') + '"'
     const autorId = e.auth ? e.auth.id : ''
-    const tipo = e.hasSuperuserAuth() ? 'administrador' : 'usuário'
+    // Bloco 3: usuário com papel admin também é registrado como administrador
+    const tipo =
+      e.hasSuperuserAuth() || (!!e.auth && e.auth.getString('papel') === 'admin')
+        ? 'administrador'
+        : 'usuário'
 
     e.next()
 
