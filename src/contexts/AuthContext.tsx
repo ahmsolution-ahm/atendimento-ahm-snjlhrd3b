@@ -9,7 +9,7 @@ interface AuthContextType {
   // Bloco 3: só para mostrar/esconder elementos — quem decide o acesso é o servidor
   isAdmin: boolean
   isLoading: boolean
-  login: (email: string, pass: string) => Promise<void>
+  login: (email: string, pass: string, lembrar?: boolean) => Promise<void>
   logout: () => void
   requestPasswordReset: (email: string) => Promise<void>
   confirmPasswordReset: (token: string, password: string, passwordConfirm: string) => Promise<void>
@@ -18,6 +18,34 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
+
+// Bloco B: "Manter-me conectado". Desmarcado = a sessão termina quando o navegador é fechado.
+// Marca no localStorage "não lembrar" + um cookie de sessão (sem validade, some ao fechar o
+// navegador e vale para todas as abas). Ao abrir o app: marca presente e cookie ausente = sair.
+const CHAVE_NAO_LEMBRAR = 'ahm_nao_lembrar'
+const COOKIE_SESSAO = 'ahm_sessao_aberta'
+
+const sessaoDeveExpirar = (): boolean => {
+  try {
+    if (localStorage.getItem(CHAVE_NAO_LEMBRAR) !== '1') return false
+    return !document.cookie.split('; ').some((c) => c.startsWith(`${COOKIE_SESSAO}=`))
+  } catch {
+    return false
+  }
+}
+
+const registrarPreferenciaSessao = (lembrar: boolean) => {
+  try {
+    if (lembrar) {
+      localStorage.removeItem(CHAVE_NAO_LEMBRAR)
+    } else {
+      localStorage.setItem(CHAVE_NAO_LEMBRAR, '1')
+      document.cookie = `${COOKIE_SESSAO}=1; path=/; SameSite=Lax`
+    }
+  } catch {
+    /* navegador sem armazenamento: a sessão segue o padrão (lembrar) */
+  }
+}
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserRecord | null>(
@@ -32,6 +60,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setToken(newToken || null)
       setUser((model as unknown as UserRecord) || null)
     })
+
+    // "Manter-me conectado" desmarcado e navegador reaberto: encerra a sessão salva
+    if (sessaoDeveExpirar()) {
+      pb.authStore.clear()
+    }
 
     // Checagem inicial de validade do token
     if (pb.authStore.isValid && pb.authStore.record) {
@@ -56,8 +89,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [])
 
-  const login = async (email: string, pass: string) => {
+  const login = async (email: string, pass: string, lembrar: boolean = true) => {
     const authData = await pb.collection('users').authWithPassword(email, pass)
+    registrarPreferenciaSessao(lembrar)
     setUser(authData.record as unknown as UserRecord)
     setToken(authData.token)
   }

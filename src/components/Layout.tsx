@@ -158,6 +158,7 @@ export default function Layout() {
       case '/metricas':
         return 'Métricas'
       default:
+        if (location.pathname.startsWith('/oportunidades/')) return 'Oportunidade'
         return 'Atendimento AHM'
     }
   }
@@ -201,19 +202,21 @@ export default function Layout() {
         <nav className="flex-1 px-3 py-2 space-y-1.5 overflow-y-auto">
           {navItems.map((item) => {
             const Icon = item.icon
-            const isActive = location.pathname === item.path
+            const isActive =
+              location.pathname === item.path ||
+              (item.path !== '/' && location.pathname.startsWith(`${item.path}/`))
             return (
               <NavLink
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 relative ${
+                className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-semibold transition-all duration-150 relative ${
                   isActive
                     ? 'text-white bg-[#DE6464] shadow-md shadow-[#DE6464]/20'
                     : 'text-[#9CA3AF] hover:text-white hover:bg-white/[0.06]'
                 }`}
               >
                 <Icon
-                  className={`w-4 h-4 ${isActive ? 'text-white' : 'text-[#9CA3AF]'}`}
+                  className={`w-5 h-5 ${isActive ? 'text-white' : 'text-[#9CA3AF]'}`}
                   strokeWidth={1.5}
                 />
                 <span>{item.name}</span>
@@ -437,7 +440,8 @@ export default function Layout() {
         </header>
 
         {/* Main Content Area */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+        {/* Bloco B: área de trabalho ocupa a tela inteira (antes limitada a 1.280 px no centro) */}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 2xl:px-12 w-full">
           <Outlet />
         </main>
 

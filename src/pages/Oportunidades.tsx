@@ -1,71 +1,40 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { useNavigate } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationPrevious,
-  PaginationNext,
-} from '@/components/ui/pagination'
-import { Target, Mail, Phone, CheckCircle2, XCircle, RotateCcw } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { ChevronLeft, ChevronRight, Target } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { oportunidadesService, type OportunidadesContadores } from '@/services/oportunidades'
-import PipelineOportunidade from '@/components/PipelineOportunidade'
-import type { OportunidadeRecord, PipelineEtapaRecord } from '@/types'
+import { formatarValor } from '@/lib/pipeline'
+import type { OportunidadeRecord } from '@/types'
+
+// Fila de oportunidades (paginada no servidor, 20 por página). Bloco B: cada oportunidade abre
+// na própria página (/oportunidades/:id), em tela inteira — decisão, pipeline, checklist,
+// fechamento e resultado ficam lá.
 
 const POR_PAGINA = 20
 
-// F1-T14: ação em andamento no modal (campo de comentário aberto)
-type ModoDecisao = null | 'revisao' | 'rejeitar' | 'voltar'
-
 const statusBadge = (status: OportunidadeRecord['status']) => {
+  const base = 'text-sm px-2.5 py-0.5'
   switch (status) {
     case 'Aprovada':
-      return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Aprovada</Badge>
+      return (
+        <Badge className={`${base} bg-green-100 text-green-800 hover:bg-green-100`}>Aprovada</Badge>
+      )
     case 'Rejeitada':
-      return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Rejeitada</Badge>
+      return <Badge className={`${base} bg-red-100 text-red-800 hover:bg-red-100`}>Rejeitada</Badge>
     case 'Em revisão':
-      return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Em revisão</Badge>
+      return (
+        <Badge className={`${base} bg-blue-100 text-blue-800 hover:bg-blue-100`}>Em revisão</Badge>
+      )
     default:
-      return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Sugerida</Badge>
+      return (
+        <Badge className={`${base} bg-amber-100 text-amber-800 hover:bg-amber-100`}>Sugerida</Badge>
+      )
   }
 }
 
-const confiancaBadge = (c?: string) => {
-  if (c === 'alta')
-    return <Badge className="bg-green-50 text-green-700 hover:bg-green-50">Confiança alta</Badge>
-  if (c === 'média')
-    return <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-50">Confiança média</Badge>
-  if (c === 'baixa')
-    return <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100">Confiança baixa</Badge>
-  return null
-}
-
-const formatarDataHora = (valor?: string) => {
-  if (!valor) return ''
-  const d = new Date(valor.replace(' ', 'T'))
-  if (Number.isNaN(d.getTime())) return ''
-  return d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
-}
+const rotuloResultado = (r?: string) => (r === 'ganha' ? 'Ganha' : r === 'perdida' ? 'Perdida' : '')
 
 const CONTADORES_INICIAIS: OportunidadesContadores = {
   total: 0,
@@ -77,6 +46,7 @@ const CONTADORES_INICIAIS: OportunidadesContadores = {
 
 export default function Oportunidades() {
   const { toast } = useToast()
+  const navigate = useNavigate()
 
   const [itens, setItens] = useState<OportunidadeRecord[]>([])
   const [pagina, setPagina] = useState(1)
@@ -86,20 +56,6 @@ export default function Oportunidades() {
   const [carregando, setCarregando] = useState(true)
   const [filtroStatus, setFiltroStatus] = useState<string>('')
 
-  const [itemSelecionado, setItemSelecionado] = useState<OportunidadeRecord | null>(null)
-  const [modo, setModo] = useState<ModoDecisao>(null)
-  const [texto, setTexto] = useState('')
-  const [salvando, setSalvando] = useState(false)
-  // F2-T03: etapas das duas trilhas (carregadas uma vez)
-  const [etapas, setEtapas] = useState<PipelineEtapaRecord[]>([])
-
-  useEffect(() => {
-    oportunidadesService
-      .etapas()
-      .then(setEtapas)
-      .catch(() => setEtapas([]))
-  }, [])
-
   const carregar = useCallback(
     async (pag: number, filtro?: string) => {
       setCarregando(true)
@@ -107,7 +63,6 @@ export default function Oportunidades() {
         const f = filtro !== undefined ? filtro : filtroStatus
         // AP-2026-11-11-0545: a UI constrói a expressão completa antes do service
         const expr = f ? `status='${f}'` : undefined
-        // lista e contadores em paralelo (antes: um depois do outro)
         const [r, c] = await Promise.all([
           oportunidadesService.listPaginado(pag, POR_PAGINA, expr),
           oportunidadesService.contadores(),
@@ -119,8 +74,8 @@ export default function Oportunidades() {
         setContadores(c)
       } catch {
         toast({
-          title: 'Erro ao carregar fila',
-          description: 'Não foi possível carregar as oportunidades.',
+          title: 'Erro ao carregar as oportunidades',
+          description: 'Não foi possível carregar as oportunidades. Tente novamente.',
           variant: 'destructive',
         })
       } finally {
@@ -134,424 +89,160 @@ export default function Oportunidades() {
     carregar(1)
   }, [carregar])
 
-  const abrirDetalhe = (item: OportunidadeRecord) => {
-    setItemSelecionado(item)
-    setModo(null)
-    setTexto('')
-  }
+  const abrir = (item: OportunidadeRecord) => navigate(`/oportunidades/${item.id}`)
 
-  const fecharDetalhe = () => {
-    setItemSelecionado(null)
-    setModo(null)
-    setTexto('')
-  }
-
-  const escolherModo = (m: ModoDecisao) => {
-    setModo(m)
-    setTexto('')
-  }
-
-  // F1-T14: executa a decisão; o modal permanece aberto mostrando o estado resultante
-  // (AP-2026-11-11-0600 — efeito visível onde o usuário está) e a fila é recarregada.
-  const decidir = async (acao: 'aprovar' | 'revisao' | 'rejeitar' | 'voltar') => {
-    if (!itemSelecionado) return
-    setSalvando(true)
-    try {
-      let atualizado: OportunidadeRecord
-      let titulo: string
-      if (acao === 'aprovar') {
-        atualizado = await oportunidadesService.aprovar(itemSelecionado)
-        titulo = 'Oportunidade aprovada'
-      } else if (acao === 'rejeitar') {
-        atualizado = await oportunidadesService.rejeitar(itemSelecionado, texto)
-        titulo = 'Oportunidade rejeitada'
-      } else {
-        atualizado = await oportunidadesService.pedirRevisao(itemSelecionado, texto)
-        titulo = 'Oportunidade em revisão'
-      }
-      toast({ title: titulo })
-      setItemSelecionado(atualizado)
-      setModo(null)
-      setTexto('')
-      carregar(pagina)
-    } catch (err) {
-      toast({
-        title: 'Não foi possível registrar a decisão',
-        description: err instanceof Error ? err.message : 'Ocorreu uma falha inesperada.',
-        variant: 'destructive',
-      })
-    } finally {
-      setSalvando(false)
-    }
-  }
-
-  const nomeLead = (item: OportunidadeRecord) => {
-    const l = item.expand?.lead
-    return l ? `${l.nome} — ${l.empresa}` : 'Lead removido'
-  }
-
-  const nomeDecisor = (item: OportunidadeRecord) =>
-    item.expand?.decidido_por?.name || item.expand?.decidido_por?.email || 'Usuário'
-
-  const aberta = itemSelecionado?.status === 'Sugerida' || itemSelecionado?.status === 'Em revisão'
+  const contadoresLista = [
+    { rotulo: 'Total', valor: contadores.total, filtro: '' },
+    { rotulo: 'Sugeridas', valor: contadores.sugeridas, filtro: 'Sugerida' },
+    { rotulo: 'Em revisão', valor: contadores.emRevisao, filtro: 'Em revisão' },
+    { rotulo: 'Aprovadas', valor: contadores.aprovadas, filtro: 'Aprovada' },
+    { rotulo: 'Rejeitadas', valor: contadores.rejeitadas, filtro: 'Rejeitada' },
+  ]
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       {/* Cabeçalho */}
       <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Target className="w-6 h-6" />
+        <h1 className="text-2xl lg:text-3xl font-extrabold flex items-center gap-3 text-[#030507]">
+          <Target className="w-7 h-7 text-[#DE6464]" />
           Oportunidades
         </h1>
-        <p className="text-sm text-muted-foreground">
-          Sugestões geradas automaticamente a partir de leads qualificados — prontas para sua
-          decisão.
+        <p className="text-base text-[#6B7280]">
+          Sugestões geradas automaticamente a partir de leads qualificados. Clique em uma
+          oportunidade para decidir e trabalhar o pipeline.
         </p>
       </div>
 
-      {/* F1-T11/AP-0545: filtro por status (chips server-side) */}
-      <div className="flex flex-wrap gap-2">
-        {[
-          { label: 'Todos', valor: '' },
-          { label: 'Sugerida', valor: 'Sugerida' },
-          { label: 'Aprovada', valor: 'Aprovada' },
-          { label: 'Rejeitada', valor: 'Rejeitada' },
-          { label: 'Em revisão', valor: 'Em revisão' },
-        ].map((op) => (
-          <button
-            key={op.valor}
-            type="button"
-            onClick={() => {
-              setFiltroStatus(op.valor)
-              carregar(1, op.valor)
-            }}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-              filtroStatus === op.valor
-                ? 'bg-[#DE6464] text-white shadow-sm'
-                : 'bg-white text-[#374151] border border-[#E5E7EB] hover:bg-[#F3F4F6]'
-            }`}
-          >
-            {op.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Contadores (F1-T14: + Rejeitadas e Em revisão) */}
+      {/* Contadores que também filtram */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        {[
-          { rotulo: 'Total na fila', valor: contadores.total },
-          { rotulo: 'Sugeridas', valor: contadores.sugeridas },
-          { rotulo: 'Em revisão', valor: contadores.emRevisao },
-          { rotulo: 'Aprovadas', valor: contadores.aprovadas },
-          { rotulo: 'Rejeitadas', valor: contadores.rejeitadas },
-        ].map((c) => (
-          <Card key={c.rotulo}>
-            <CardHeader className="pb-2">
-              <CardDescription>{c.rotulo}</CardDescription>
-              <CardTitle className="text-2xl">{c.valor}</CardTitle>
-            </CardHeader>
-            <CardContent />
-          </Card>
-        ))}
+        {contadoresLista.map((c) => {
+          const ativo = filtroStatus === c.filtro
+          return (
+            <button
+              key={c.rotulo}
+              type="button"
+              onClick={() => {
+                setFiltroStatus(c.filtro)
+                carregar(1, c.filtro)
+              }}
+              className={`text-left rounded-2xl border p-5 transition-all ${
+                ativo
+                  ? 'border-[#DE6464] bg-[#DE6464]/[0.06] ring-2 ring-[#DE6464]/30'
+                  : 'border-[#E5E7EB] bg-white hover:border-[#D1D5DB] hover:shadow-sm'
+              }`}
+            >
+              <p className="text-base font-semibold text-[#6B7280]">{c.rotulo}</p>
+              <p className="text-3xl font-extrabold text-[#030507] mt-1">{c.valor}</p>
+            </button>
+          )
+        })}
       </div>
 
       {/* Fila */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Oportunidades</CardTitle>
-          <CardDescription>
+      <div className="rounded-2xl border border-[#E5E7EB] bg-white shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-[#E5E7EB] flex flex-wrap items-center justify-between gap-2">
+          <p className="text-lg font-bold text-[#030507]">
+            {filtroStatus ? `Oportunidades — ${filtroStatus}` : 'Todas as oportunidades'}
+          </p>
+          <p className="text-base text-[#6B7280]">
             {carregando
               ? 'Carregando…'
-              : `${total} ${total === 1 ? 'item' : 'itens'} — página ${pagina} de ${totalPaginas}`}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {itens.length === 0 && !carregando ? (
-            <div className="py-12 text-center text-sm text-muted-foreground">
-              Nenhuma oportunidade por enquanto. Quando um lead for qualificado, a sugestão aparece
-              aqui automaticamente para você decidir.
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Lead</TableHead>
-                  <TableHead>Produto</TableHead>
-                  <TableHead>Justificativa</TableHead>
-                  <TableHead>Confiança</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {itens.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">{nomeLead(item)}</TableCell>
-                    <TableCell>{item.expand?.produto?.nome || '—'}</TableCell>
-                    <TableCell className="max-w-xs truncate text-xs text-muted-foreground">
-                      {item.justificativa}
-                    </TableCell>
-                    <TableCell>{confiancaBadge(item.confianca)}</TableCell>
-                    <TableCell>{statusBadge(item.status)}</TableCell>
-                    <TableCell>
-                      <Button size="sm" variant="outline" onClick={() => abrirDetalhe(item)}>
-                        Abrir
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+              : `${total} ${total === 1 ? 'oportunidade' : 'oportunidades'} · página ${pagina} de ${totalPaginas}`}
+          </p>
+        </div>
 
-          {/* Paginação */}
-          {totalPaginas > 1 && (
-            <div className="mt-4 flex justify-center">
-              <Pagination>
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        carregar(Math.max(1, pagina - 1))
-                      }}
-                    />
-                  </PaginationItem>
-                  <PaginationItem className="text-sm self-center px-2">
-                    Página {pagina} de {totalPaginas}
-                  </PaginationItem>
-                  <PaginationItem>
-                    <PaginationNext
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        carregar(Math.min(totalPaginas, pagina + 1))
-                      }}
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Modal de detalhe + decisões (F1-T14) */}
-      <Dialog open={!!itemSelecionado} onOpenChange={(open) => !open && fecharDetalhe()}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              Oportunidade — {itemSelecionado ? nomeLead(itemSelecionado) : ''}
-            </DialogTitle>
-            <DialogDescription>
-              {itemSelecionado?.expand?.produto?.nome
-                ? `Produto: ${itemSelecionado.expand.produto.nome}`
-                : 'Produto não informado'}
-            </DialogDescription>
-          </DialogHeader>
-
-          {itemSelecionado && (
-            <div className="space-y-4">
-              {/* Situação da oportunidade + última decisão */}
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                {statusBadge(itemSelecionado.status)}
-                {itemSelecionado.decidido_em && (
-                  <span className="text-xs text-muted-foreground">
-                    Decidido em {formatarDataHora(itemSelecionado.decidido_em)} por{' '}
-                    {nomeDecisor(itemSelecionado)}
-                  </span>
-                )}
-              </div>
-
-              <div className="rounded-lg bg-muted p-3 text-sm">
-                <p className="font-medium mb-1">Por que esta oportunidade foi sugerida</p>
-                <p className="text-muted-foreground">{itemSelecionado.justificativa}</p>
-                <div className="mt-2">{confiancaBadge(itemSelecionado.confianca)}</div>
-              </div>
-
-              {/* Histórico de comentários (decisões e requalificações acumuladas) */}
-              {itemSelecionado.comentario && (
-                <div className="rounded-lg border border-[#E5E7EB] bg-white p-3 text-sm">
-                  <p className="font-medium mb-1">Comentários</p>
-                  <p className="whitespace-pre-line text-muted-foreground">
-                    {itemSelecionado.comentario}
-                  </p>
-                </div>
-              )}
-
-              {/* AP-2026-11-11-0600: situação do lead visível onde o usuário está */}
-              <div className="rounded-lg bg-muted p-3 text-sm">
-                <p className="font-medium mb-1">Situação do lead</p>
-                {itemSelecionado.expand?.lead ? (
-                  <p className="text-muted-foreground">
-                    {itemSelecionado.expand.lead.nome} está{' '}
-                    <span className="font-semibold text-[#030507]">
-                      {itemSelecionado.expand.lead.status === 'pendente'
-                        ? 'Pendente'
-                        : itemSelecionado.expand.lead.status === 'qualificado'
-                          ? 'Qualificado'
-                          : itemSelecionado.expand.lead.status === 'transbordo'
-                            ? 'Transbordo'
-                            : itemSelecionado.expand.lead.status === 'fora do recorte'
-                              ? 'Fora do recorte'
-                              : itemSelecionado.expand.lead.status}
-                    </span>
-                  </p>
-                ) : (
-                  <p className="text-muted-foreground">Lead não disponível.</p>
-                )}
-              </div>
-
-              {/* Contato do lead — o executivo precisa ver com quem falar */}
-              {itemSelecionado.expand?.lead && (
-                <div className="rounded-lg border border-[#E5E7EB] bg-white p-3 text-sm">
-                  <p className="font-medium mb-1.5">Contato</p>
-                  <div className="space-y-1 text-[#374151]">
-                    {itemSelecionado.expand.lead.contato && (
-                      <p className="flex items-center gap-2">
-                        <Mail className="w-3.5 h-3.5 text-[#DE6464]" />
-                        {itemSelecionado.expand.lead.contato}
-                      </p>
-                    )}
-                    {itemSelecionado.expand.lead.telefone && (
-                      <p className="flex items-center gap-2">
-                        <Phone className="w-3.5 h-3.5 text-[#DE6464]" />
-                        {itemSelecionado.expand.lead.telefone}
-                      </p>
-                    )}
-                    {itemSelecionado.expand.lead.observacoes && (
-                      <p className="text-xs text-muted-foreground">
-                        {itemSelecionado.expand.lead.observacoes}
-                      </p>
-                    )}
-                    {!itemSelecionado.expand.lead.contato &&
-                      !itemSelecionado.expand.lead.telefone &&
-                      !itemSelecionado.expand.lead.observacoes && (
-                        <p className="text-muted-foreground">
-                          Nenhum contato registrado neste lead.
-                        </p>
-                      )}
-                  </div>
-                </div>
-              )}
-
-              {/* F2-T02/T03/T04: fechamento, pipeline de duas trilhas e histórico de etapas */}
-              <PipelineOportunidade
-                item={itemSelecionado}
-                etapas={etapas}
-                onAtualizado={(atualizado) => {
-                  setItemSelecionado(atualizado)
-                  carregar(pagina)
-                }}
-              />
-
-              {/* Campo de comentário da decisão em andamento */}
-              {modo && (
-                <div className="space-y-1.5">
-                  <Label htmlFor="comentario-decisao">
-                    {modo === 'rejeitar'
-                      ? 'Motivo da rejeição (obrigatório)'
-                      : modo === 'voltar'
-                        ? 'Justificativa da volta para revisão (obrigatória)'
-                        : 'Comentário para a revisão (opcional)'}
-                  </Label>
-                  <Textarea
-                    id="comentario-decisao"
-                    value={texto}
-                    onChange={(e) => setTexto(e.target.value)}
-                    rows={3}
-                    placeholder={
-                      modo === 'rejeitar'
-                        ? 'Explique por que esta oportunidade não será seguida.'
-                        : modo === 'voltar'
-                          ? 'Explique por que a aprovação precisa ser revista.'
-                          : 'Recomendado: indique o que precisa ser revisado.'
-                    }
-                  />
-                  <div className="flex justify-end gap-2">
-                    <Button variant="ghost" onClick={() => escolherModo(null)} disabled={salvando}>
-                      Cancelar
-                    </Button>
-                    {modo === 'rejeitar' && (
-                      <Button
-                        variant="destructive"
-                        onClick={() => decidir('rejeitar')}
-                        disabled={salvando || !texto.trim()}
-                      >
-                        {salvando ? 'Registrando…' : 'Confirmar rejeição'}
-                      </Button>
-                    )}
-                    {modo === 'revisao' && (
-                      <Button onClick={() => decidir('revisao')} disabled={salvando}>
-                        {salvando ? 'Registrando…' : 'Confirmar pedido de revisão'}
-                      </Button>
-                    )}
-                    {modo === 'voltar' && (
-                      <Button
-                        onClick={() => decidir('voltar')}
-                        disabled={salvando || !texto.trim()}
-                      >
-                        {salvando ? 'Registrando…' : 'Confirmar volta para revisão'}
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Botões de decisão */}
-              {!modo && (
-                <div className="flex flex-wrap justify-end gap-2">
-                  <Button variant="outline" onClick={fecharDetalhe}>
-                    Fechar
-                  </Button>
-                  {aberta && (
-                    <>
-                      <Button
-                        variant="outline"
-                        className="text-red-700"
-                        onClick={() => escolherModo('rejeitar')}
-                        disabled={salvando}
-                      >
-                        <XCircle className="w-4 h-4 mr-1.5" />
-                        Rejeitar
-                      </Button>
-                      {itemSelecionado.status === 'Sugerida' && (
+        {itens.length === 0 && !carregando ? (
+          <div className="py-16 px-6 text-center text-base text-[#6B7280]">
+            Nenhuma oportunidade por enquanto. Quando um lead for qualificado, a sugestão aparece
+            aqui automaticamente para você decidir.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-[#FAF7F2] text-sm font-semibold text-[#6B7280]">
+                <tr>
+                  <th className="py-3.5 px-6">Lead</th>
+                  <th className="py-3.5 px-6">Produto</th>
+                  <th className="py-3.5 px-6">Etapa</th>
+                  <th className="py-3.5 px-6">Valor estimado</th>
+                  <th className="py-3.5 px-6">Status</th>
+                  <th className="py-3.5 px-6" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#E5E7EB] text-base text-[#030507]">
+                {itens.map((item) => {
+                  const lead = item.expand?.lead
+                  const resultado = rotuloResultado(item.resultado)
+                  return (
+                    <tr
+                      key={item.id}
+                      onClick={() => abrir(item)}
+                      className="cursor-pointer hover:bg-[#FAF7F2] transition-colors"
+                    >
+                      <td className="py-4 px-6">
+                        <p className="font-semibold">{lead?.nome || 'Lead removido'}</p>
+                        {lead?.empresa && <p className="text-sm text-[#6B7280]">{lead.empresa}</p>}
+                      </td>
+                      <td className="py-4 px-6">{item.expand?.produto?.nome || '—'}</td>
+                      <td className="py-4 px-6">
+                        {resultado ? (
+                          <span
+                            className={`font-semibold ${item.resultado === 'ganha' ? 'text-[#059669]' : 'text-[#B91C1C]'}`}
+                          >
+                            {resultado}
+                          </span>
+                        ) : (
+                          item.expand?.etapa_atual?.nome || (
+                            <span className="text-[#6B7280]">Não iniciado</span>
+                          )
+                        )}
+                      </td>
+                      <td className="py-4 px-6">
+                        {formatarValor(item.valor_estimado, item.moeda)}
+                      </td>
+                      <td className="py-4 px-6">{statusBadge(item.status)}</td>
+                      <td className="py-4 px-6 text-right">
                         <Button
                           variant="outline"
-                          onClick={() => escolherModo('revisao')}
-                          disabled={salvando}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            abrir(item)
+                          }}
                         >
-                          <RotateCcw className="w-4 h-4 mr-1.5" />
-                          Pedir revisão
+                          Abrir
                         </Button>
-                      )}
-                      <Button
-                        className="bg-green-600 hover:bg-green-700 text-white"
-                        onClick={() => decidir('aprovar')}
-                        disabled={salvando}
-                      >
-                        <CheckCircle2 className="w-4 h-4 mr-1.5" />
-                        {salvando ? 'Registrando…' : 'Aprovar'}
-                      </Button>
-                    </>
-                  )}
-                  {itemSelecionado.status === 'Aprovada' && (
-                    <Button
-                      variant="outline"
-                      onClick={() => escolherModo('voltar')}
-                      disabled={salvando}
-                    >
-                      <RotateCcw className="w-4 h-4 mr-1.5" />
-                      Voltar para revisão
-                    </Button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Paginação */}
+        {totalPaginas > 1 && (
+          <div className="px-6 py-4 border-t border-[#E5E7EB] flex items-center justify-center gap-4">
+            <Button
+              variant="outline"
+              onClick={() => carregar(Math.max(1, pagina - 1))}
+              disabled={pagina <= 1 || carregando}
+            >
+              <ChevronLeft className="w-4 h-4 mr-1" /> Anterior
+            </Button>
+            <span className="text-base text-[#374151]">
+              Página {pagina} de {totalPaginas}
+            </span>
+            <Button
+              variant="outline"
+              onClick={() => carregar(Math.min(totalPaginas, pagina + 1))}
+              disabled={pagina >= totalPaginas || carregando}
+            >
+              Próxima <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

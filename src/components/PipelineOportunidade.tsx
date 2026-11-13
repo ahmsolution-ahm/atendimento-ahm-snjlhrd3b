@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   AlertTriangle,
   ArrowLeft,
@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { oportunidadesService } from '@/services/oportunidades'
 import {
+  camposFaltantesParaMover,
   derivarFechamento,
   etapaVizinha,
   etapasDaTrilha,
@@ -36,8 +37,12 @@ import type {
 } from '@/types'
 
 // Fase 2 — fechamento, pipeline de duas trilhas, checklist por etapa, resultado ganho/perda
-// e históricos. Fluxo guiado (pedido do owner): o cartão "Próximo passo" diz, em linguagem
-// simples, o que fazer agora. O servidor valida tudo; a tela mostra as mensagens dele.
+// e históricos. Bloco B: desenhado para a PÁGINA da oportunidade (tela inteira), não para um
+// modal: pipeline na horizontal, "Próximo passo" em destaque, etapa atual e checklist com
+// espaço, fechamento e resultado sempre visíveis na coluna lateral.
+// Fluxo guiado: enquanto faltar ambiente/valor, os botões de mudar de etapa ficam
+// desabilitados com o motivo ao lado e a seção Fechamento é destacada (o servidor continua
+// validando; a tela evita a tentativa às cegas).
 
 const formatarDataHora = (valor?: string) => {
   if (!valor) return ''
@@ -48,18 +53,22 @@ const formatarDataHora = (valor?: string) => {
 }
 
 const campoCls =
-  'w-full px-3 py-2 rounded-lg border border-[#E5E7EB] text-sm text-[#030507] bg-white outline-none focus:border-[#DE6464]'
-const caixaCls = 'rounded-lg border border-[#E5E7EB] bg-white p-3 text-sm space-y-3'
-const tituloCls = 'font-medium flex items-center gap-1.5'
+  'w-full px-3.5 py-2.5 rounded-xl border border-[#E5E7EB] text-base text-[#030507] bg-white outline-none focus:border-[#DE6464] focus:ring-2 focus:ring-[#DE6464]/20 disabled:bg-[#F9FAFB]'
+const cartaoCls = 'rounded-2xl border border-[#E5E7EB] bg-white p-5 lg:p-6 shadow-sm'
+const tituloCls = 'text-lg font-bold text-[#030507] flex items-center gap-2'
+const rotuloCls = 'block text-sm font-semibold text-[#374151] mb-1.5'
 
 export default function PipelineOportunidade({
   item,
   etapas,
   onAtualizado,
+  lateral,
 }: {
   item: OportunidadeRecord
   etapas: PipelineEtapaRecord[]
   onAtualizado: (item: OportunidadeRecord) => void
+  /** conteúdo extra no topo da coluna lateral (dados do lead, contato etc.) */
+  lateral?: ReactNode
 }) {
   const { toast } = useToast()
   const [ambiente, setAmbiente] = useState<AmbienteFechamento | ''>(item.ambiente_fechamento || '')
@@ -145,6 +154,11 @@ export default function PipelineOportunidade({
     ambiente: item.ambiente_fechamento,
     valor: item.valor_estimado,
   })
+  // o que falta (pelo que está SALVO) para poder mudar de etapa
+  const faltandoParaMover = atual
+    ? camposFaltantesParaMover(item.ambiente_fechamento, item.valor_estimado)
+    : []
+  const bloqueadoPorFechamento = faltandoParaMover.length > 0
   const histAberto = historico.find((h) => !h.saiu_em && h.etapa === item.etapa_atual)
   const itensEtapa = useMemo(
     () => itensChecklist.filter((i) => i.etapa === item.etapa_atual),
@@ -261,46 +275,55 @@ export default function PipelineOportunidade({
     { tipo: 'insucesso', titulo: 'Sinais de insucesso (marque se estiverem presentes)' },
   ]
 
+  const destaqueFechamento = !fechada && !!atual && bloqueadoPorFechamento
+
   return (
-    <div className="space-y-4">
-      {/* Próximo passo — o que fazer agora */}
-      <div className="rounded-lg border border-[#DE6464]/30 bg-[#DE6464]/5 p-3 text-sm">
-        <p className={`${tituloCls} text-[#030507] mb-1`}>
-          <Compass className="w-4 h-4 text-[#DE6464]" /> Próximo passo
-        </p>
-        <p className="text-[#374151]">{passo.texto}</p>
+    <div className="space-y-6">
+      {/* Próximo passo — o que fazer agora, em destaque */}
+      <div className="rounded-2xl border-2 border-[#DE6464]/40 bg-[#DE6464]/[0.06] p-5 lg:p-6 flex items-start gap-4">
+        <div className="w-12 h-12 rounded-xl bg-[#DE6464] text-white flex items-center justify-center shrink-0">
+          <Compass className="w-6 h-6" />
+        </div>
+        <div>
+          <p className="text-sm font-bold uppercase tracking-wider text-[#DE6464]">Próximo passo</p>
+          <p className="text-lg lg:text-xl font-semibold text-[#030507] mt-1 leading-snug">
+            {passo.texto}
+          </p>
+        </div>
       </div>
 
-      {/* Pipeline */}
-      <div className={caixaCls}>
-        <p className={tituloCls}>
-          <Flag className="w-4 h-4 text-[#DE6464]" /> Pipeline
-        </p>
+      {/* Pipeline na horizontal */}
+      <div className={cartaoCls}>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-4">
+          <p className={tituloCls}>
+            <Flag className="w-5 h-5 text-[#DE6464]" /> Pipeline
+          </p>
+          {trilha && <p className="text-sm text-[#6B7280]">{rotuloTrilha(trilha)}</p>}
+        </div>
         {!trilha ? (
-          <p className="text-xs rounded-lg bg-amber-50 border border-amber-200 text-[#92400E] px-3 py-2">
+          <p className="text-base rounded-xl bg-amber-50 border border-amber-200 text-[#92400E] px-4 py-3">
             Trilha não definida: o produto desta oportunidade precisa ter a complexidade (baixa ou
             alta) cadastrada no catálogo para iniciar o pipeline.
           </p>
         ) : (
-          <>
-            <p className="text-xs text-muted-foreground">{rotuloTrilha(trilha)}</p>
-            <ol className="space-y-1">
-              {lista.map((etapa) => {
-                const eAtual = etapa.id === item.etapa_atual
-                const concluida = !!atual && etapa.ordem < atual.ordem
-                return (
-                  <li
-                    key={etapa.id}
-                    className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs ${
-                      eAtual
-                        ? 'bg-[#DE6464] text-white font-semibold'
-                        : concluida
-                          ? 'bg-emerald-50 text-[#065F46]'
-                          : 'text-[#6B7280]'
-                    }`}
-                  >
+          <ol className="flex gap-2 overflow-x-auto pb-1">
+            {lista.map((etapa) => {
+              const eAtual = etapa.id === item.etapa_atual
+              const concluida = !!atual && etapa.ordem < atual.ordem
+              return (
+                <li
+                  key={etapa.id}
+                  className={`flex-1 min-w-[140px] rounded-xl border-2 px-3 py-3 ${
+                    eAtual
+                      ? 'border-[#DE6464] bg-[#DE6464] text-white shadow-md'
+                      : concluida
+                        ? 'border-emerald-200 bg-emerald-50 text-[#065F46]'
+                        : 'border-[#E5E7EB] bg-white text-[#6B7280]'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
                     <span
-                      className={`w-5 h-5 shrink-0 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                      className={`w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-sm font-bold ${
                         eAtual
                           ? 'bg-white text-[#DE6464]'
                           : concluida
@@ -308,359 +331,430 @@ export default function PipelineOportunidade({
                             : 'bg-gray-100 text-[#6B7280]'
                       }`}
                     >
-                      {concluida ? <Check className="w-3 h-3" /> : etapa.ordem}
+                      {concluida ? <Check className="w-4 h-4" /> : etapa.ordem}
                     </span>
-                    <span className="flex-1">{etapa.nome}</span>
-                    <span className={`text-[10px] ${eAtual ? 'text-white/80' : ''}`}>
-                      {etapa.fase}
-                    </span>
+                    <span className={`text-xs ${eAtual ? 'text-white/85' : ''}`}>{etapa.fase}</span>
+                  </div>
+                  <p className="text-sm font-semibold mt-2 leading-snug">{etapa.nome}</p>
+                </li>
+              )
+            })}
+          </ol>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
+        {/* Coluna principal: etapa atual + checklist + histórico */}
+        <div className="xl:col-span-2 space-y-6">
+          {trilha && (
+            <div className={cartaoCls}>
+              <p className={tituloCls}>
+                <ClipboardCheck className="w-5 h-5 text-[#DE6464]" />
+                {atual ? `Etapa atual: ${atual.nome}` : 'Pipeline ainda não iniciado'}
+              </p>
+              {atual && (
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="rounded-xl bg-[#FAF7F2] px-4 py-3">
+                    <p className="text-sm text-[#6B7280]">Na etapa desde</p>
+                    <p className="text-base font-semibold text-[#030507]">
+                      {formatarDataHora(item.etapa_desde) || '—'}
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-[#FAF7F2] px-4 py-3">
+                    <p className="text-sm text-[#6B7280]">Responsável sugerido</p>
+                    <p className="text-base font-semibold text-[#030507]">
+                      {atual.responsavel_sugerido || '—'}
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-[#FAF7F2] px-4 py-3">
+                    <p className="text-sm text-[#6B7280]">Duração de referência</p>
+                    <p className="text-base font-semibold text-[#030507]">{atual.duracao || '—'}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Conclusão da etapa com checklist */}
+              {concluindo && proxima && (
+                <div className="mt-5 rounded-2xl border border-[#E5E7EB] bg-[#FAF7F2] p-5 space-y-5">
+                  <p className="text-base font-bold text-[#030507]">
+                    Concluir “{atual?.nome}” e seguir para “{proxima.nome}”
+                  </p>
+                  {itensEtapa.length === 0 ? (
+                    <p className="text-base text-[#6B7280]">
+                      O checklist desta etapa ainda não foi cadastrado. Você pode concluir a etapa
+                      normalmente.
+                    </p>
+                  ) : (
+                    grupos.map((g) => {
+                      const itens = itensEtapa.filter((i) => i.tipo === g.tipo)
+                      if (itens.length === 0) return null
+                      return (
+                        <div key={g.tipo} className="space-y-2">
+                          <p className="text-base font-semibold text-[#030507]">
+                            {g.titulo}
+                            {g.tipo === 'criterio' &&
+                              ` — ${criterios.atendidos} de ${criterios.total} atendidos`}
+                          </p>
+                          {g.tipo === 'pergunta' ? (
+                            <div className="space-y-3">
+                              {itens.map((i) => (
+                                <div key={i.id}>
+                                  <p className="text-base text-[#374151] mb-1.5">{i.texto}</p>
+                                  <textarea
+                                    rows={2}
+                                    value={observacoes[i.id] || ''}
+                                    onChange={(e) =>
+                                      setObservacoes((o) => ({ ...o, [i.id]: e.target.value }))
+                                    }
+                                    className={campoCls}
+                                    placeholder="Resposta (opcional)."
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              {itens.map((i) => (
+                                <label
+                                  key={i.id}
+                                  className={`flex items-start gap-3 rounded-xl border bg-white px-4 py-3 text-base cursor-pointer transition-colors ${
+                                    marcados[i.id]
+                                      ? g.tipo === 'insucesso'
+                                        ? 'border-red-300 bg-red-50'
+                                        : 'border-emerald-300 bg-emerald-50'
+                                      : 'border-[#E5E7EB] hover:border-[#D1D5DB]'
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    className="mt-1 w-5 h-5 accent-[#DE6464] shrink-0"
+                                    checked={!!marcados[i.id]}
+                                    onChange={(e) => {
+                                      setMarcados((m) => ({ ...m, [i.id]: e.target.checked }))
+                                      setAlertaConfirmado(false)
+                                    }}
+                                  />
+                                  <span className="text-[#374151]">{i.texto}</span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })
+                  )}
+                  {alertaConfirmado && alertas.length > 0 && (
+                    <div className="rounded-xl bg-red-50 border border-red-200 text-[#991B1B] px-4 py-3 text-base space-y-1.5">
+                      <p className="font-semibold flex items-center gap-2">
+                        <AlertTriangle className="w-5 h-5" /> Atenção: sinais de insucesso presentes
+                      </p>
+                      <ul className="list-disc pl-6">
+                        {alertas.map((a) => (
+                          <li key={a.id}>{a.texto}</li>
+                        ))}
+                      </ul>
+                      <p>
+                        Revise antes de seguir. Se decidir avançar, o alerta fica registrado no
+                        histórico.
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex flex-wrap justify-end gap-3">
+                    <Button
+                      variant="ghost"
+                      size="lg"
+                      onClick={() => setConcluindo(false)}
+                      disabled={salvando}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button size="lg" onClick={concluirEtapa} disabled={salvando}>
+                      {salvando
+                        ? 'Registrando…'
+                        : alertaConfirmado && alertas.length > 0
+                          ? `Avançar mesmo assim para “${proxima.nome}”`
+                          : `Confirmar e seguir para “${proxima.nome}”`}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {!concluindo && !fechada && (
+                <div className="mt-5 flex flex-col gap-3">
+                  {bloqueadoPorFechamento && (
+                    <p className="rounded-xl bg-amber-50 border border-amber-200 text-[#92400E] px-4 py-3 text-base">
+                      Para mudar de etapa, preencha e salve na seção Fechamento:{' '}
+                      <strong>{faltandoParaMover.join(' e ')}</strong>.
+                    </p>
+                  )}
+                  <div className="flex flex-wrap justify-end gap-3">
+                    {!atual && lista[0] && (
+                      <Button
+                        size="lg"
+                        onClick={() => mover(lista[0].id, 'Pipeline iniciado')}
+                        disabled={salvando}
+                      >
+                        Iniciar pipeline
+                      </Button>
+                    )}
+                    {anterior && (
+                      <Button
+                        size="lg"
+                        variant="outline"
+                        onClick={() =>
+                          mover(anterior.id, `Oportunidade voltou para “${anterior.nome}”`)
+                        }
+                        disabled={salvando || bloqueadoPorFechamento}
+                      >
+                        <ArrowLeft className="w-4 h-4 mr-1.5" /> Voltar etapa
+                      </Button>
+                    )}
+                    {proxima && (
+                      <Button
+                        size="lg"
+                        onClick={abrirConclusao}
+                        disabled={salvando || bloqueadoPorFechamento}
+                      >
+                        <ClipboardCheck className="w-4 h-4 mr-1.5" /> Concluir etapa
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Históricos */}
+          <div className={cartaoCls}>
+            <p className={`${tituloCls} mb-4`}>
+              <History className="w-5 h-5 text-[#DE6464]" /> Histórico
+            </p>
+            {historico.length === 0 && fechamentos.length === 0 ? (
+              <p className="text-base text-[#6B7280]">Nenhuma movimentação registrada ainda.</p>
+            ) : (
+              <ol className="relative border-l-2 border-[#E5E7EB] ml-2 space-y-5">
+                {historico.map((h) => (
+                  <li key={h.id} className="pl-5 relative">
+                    <span className="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full bg-white border-2 border-[#DE6464]" />
+                    <p className="text-base font-semibold text-[#030507]">
+                      {h.expand?.etapa?.nome || 'Etapa removida'}
+                    </p>
+                    <p className="text-sm text-[#6B7280]">
+                      Entrou em {formatarDataHora(h.entrou_em)}
+                      {h.saiu_em ? ` · saiu em ${formatarDataHora(h.saiu_em)}` : ' · etapa atual'}
+                      {h.expand?.responsavel
+                        ? ` · por ${h.expand.responsavel.name || h.expand.responsavel.email}`
+                        : ''}
+                      {respostasPorHist[h.id]
+                        ? ` · checklist com ${respostasPorHist[h.id]} ${respostasPorHist[h.id] === 1 ? 'item registrado' : 'itens registrados'}`
+                        : ''}
+                    </p>
                   </li>
-                )
-              })}
-            </ol>
-            {atual && (
-              <p className="text-xs text-muted-foreground">
-                {item.etapa_desde &&
-                  `Na etapa “${atual.nome}” desde ${formatarDataHora(item.etapa_desde)}.`}
-                {atual.responsavel_sugerido &&
-                  ` Responsável sugerido: ${atual.responsavel_sugerido}.`}
-                {atual.duracao && ` Duração de referência: ${atual.duracao}.`}
+                ))}
+                {fechamentos.map((f) => (
+                  <li key={f.id} className="pl-5 relative">
+                    <span className="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full bg-white border-2 border-[#030507]" />
+                    <p className="text-base font-semibold text-[#030507]">
+                      {f.acao === 'reabertura'
+                        ? 'Oportunidade reaberta'
+                        : f.resultado === 'ganha'
+                          ? 'Oportunidade ganha'
+                          : 'Oportunidade perdida'}
+                    </p>
+                    <p className="text-sm text-[#6B7280]">
+                      {formatarDataHora(f.registrado_em)} — {f.motivo}
+                      {f.concorrente ? ` (concorrente: ${f.concorrente})` : ''}
+                      {f.expand?.registrado_por
+                        ? ` · por ${f.expand.registrado_por.name || f.expand.registrado_por.email}`
+                        : ''}
+                    </p>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        </div>
+
+        {/* Coluna lateral: lead, fechamento e resultado sempre à vista */}
+        <div className="space-y-6">
+          {lateral}
+
+          {/* Fechamento */}
+          <div
+            className={`${cartaoCls} space-y-4 ${
+              destaqueFechamento ? 'ring-2 ring-[#F59E0B] border-[#F59E0B]' : ''
+            }`}
+          >
+            <p className={tituloCls}>
+              <Wallet className="w-5 h-5 text-[#DE6464]" /> Fechamento
+            </p>
+            {destaqueFechamento && (
+              <p className="text-sm font-semibold text-[#92400E]">
+                Preencha estes campos para liberar a mudança de etapa.
+              </p>
+            )}
+            <div>
+              <label className={rotuloCls}>Ambiente de fechamento</label>
+              <select
+                value={ambiente}
+                onChange={(e) => setAmbiente(e.target.value as AmbienteFechamento | '')}
+                className={campoCls}
+                disabled={fechada}
+              >
+                <option value="">Selecione</option>
+                <option value="Venda em reais">Venda em reais</option>
+                <option value="Locação em reais">Locação em reais</option>
+                <option value="Exportação (EUA)">Exportação (EUA)</option>
+              </select>
+            </div>
+            <div>
+              <label className={rotuloCls}>
+                Valor estimado{derivado.moeda ? ` (${derivado.moeda})` : ''}
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                inputMode="decimal"
+                value={valor}
+                onChange={(e) => setValor(e.target.value)}
+                placeholder="0,00"
+                className={campoCls}
+                disabled={fechada}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl bg-[#FAF7F2] px-3 py-2.5">
+                <p className="text-sm text-[#6B7280]">Moeda</p>
+                <p className="text-base font-semibold text-[#030507]">{derivado.moeda || '—'}</p>
+              </div>
+              <div className="rounded-xl bg-[#FAF7F2] px-3 py-2.5">
+                <p className="text-sm text-[#6B7280]">Entidade vendedora</p>
+                <p className="text-base font-semibold text-[#030507]">{derivado.entidade || '—'}</p>
+              </div>
+            </div>
+            <p className="text-sm text-[#6B7280]">
+              Moeda e entidade são definidas automaticamente pelo ambiente de fechamento.
+            </p>
+            {!fechada && (
+              <Button className="w-full" size="lg" onClick={salvarFechamento} disabled={salvando}>
+                {salvando ? 'Salvando…' : 'Salvar fechamento'}
+              </Button>
+            )}
+          </div>
+
+          {/* Resultado: ganha / perdida / reabrir */}
+          <div className={`${cartaoCls} space-y-4`}>
+            <p className={tituloCls}>
+              <Trophy className="w-5 h-5 text-[#DE6464]" /> Resultado
+            </p>
+            {fechada ? (
+              <div className="text-base text-[#374151] space-y-1">
+                <p
+                  className={`text-xl font-bold ${item.resultado === 'ganha' ? 'text-[#059669]' : 'text-[#B91C1C]'}`}
+                >
+                  {item.resultado === 'ganha' ? 'Ganha' : 'Perdida'}
+                  {item.valor_estimado
+                    ? ` · ${formatarValor(item.valor_estimado, item.moeda)}`
+                    : ''}
+                </p>
+                {item.fechado_em && <p>Em {formatarDataHora(item.fechado_em)}</p>}
+                {item.resultado_motivo && <p>{item.resultado_motivo}</p>}
+                {item.concorrente && <p>Concorrente: {item.concorrente}</p>}
+              </div>
+            ) : (
+              <p className="text-base text-[#6B7280]">
+                Em andamento. Registre o resultado quando a negociação terminar — é preciso informar
+                o motivo e ter o fechamento (ambiente e valor) preenchido.
               </p>
             )}
 
-            {/* Conclusão da etapa com checklist */}
-            {concluindo && proxima && (
-              <div className="rounded-lg border border-[#E5E7EB] bg-[#FAF7F2] p-3 space-y-3">
-                <p className={tituloCls}>
-                  <ClipboardCheck className="w-4 h-4 text-[#DE6464]" /> Concluir “{atual?.nome}”
-                </p>
-                {itensEtapa.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">
-                    O checklist desta etapa ainda não foi cadastrado. Você pode concluir a etapa
-                    normalmente.
-                  </p>
-                ) : (
-                  grupos.map((g) => {
-                    const itens = itensEtapa.filter((i) => i.tipo === g.tipo)
-                    if (itens.length === 0) return null
-                    return (
-                      <div key={g.tipo} className="space-y-1.5">
-                        <p className="text-xs font-semibold text-[#030507]">
-                          {g.titulo}
-                          {g.tipo === 'criterio' &&
-                            ` — ${criterios.atendidos} de ${criterios.total} atendidos`}
-                        </p>
-                        {itens.map((i) =>
-                          i.tipo === 'pergunta' ? (
-                            <div key={i.id}>
-                              <p className="text-xs text-[#374151] mb-1">{i.texto}</p>
-                              <textarea
-                                rows={2}
-                                value={observacoes[i.id] || ''}
-                                onChange={(e) =>
-                                  setObservacoes((o) => ({ ...o, [i.id]: e.target.value }))
-                                }
-                                className={campoCls}
-                                placeholder="Resposta (opcional)."
-                              />
-                            </div>
-                          ) : (
-                            <label
-                              key={i.id}
-                              className="flex items-start gap-2 text-xs text-[#374151]"
-                            >
-                              <input
-                                type="checkbox"
-                                className="mt-0.5"
-                                checked={!!marcados[i.id]}
-                                onChange={(e) => {
-                                  setMarcados((m) => ({ ...m, [i.id]: e.target.checked }))
-                                  setAlertaConfirmado(false)
-                                }}
-                              />
-                              {i.texto}
-                            </label>
-                          ),
-                        )}
-                      </div>
-                    )
-                  })
+            {modoResultado ? (
+              <div className="space-y-3">
+                <label className={rotuloCls}>
+                  {modoResultado === 'reabrir'
+                    ? 'Justificativa da reabertura (obrigatória)'
+                    : modoResultado === 'ganha'
+                      ? 'Motivo do ganho (obrigatório)'
+                      : 'Motivo da perda (obrigatório)'}
+                </label>
+                <textarea
+                  rows={3}
+                  value={motivo}
+                  onChange={(e) => setMotivo(e.target.value)}
+                  className={campoCls}
+                />
+                {modoResultado === 'perdida' && (
+                  <input
+                    type="text"
+                    value={concorrente}
+                    onChange={(e) => setConcorrente(e.target.value)}
+                    placeholder="Concorrente que venceu (opcional)"
+                    className={campoCls}
+                  />
                 )}
-                {alertaConfirmado && alertas.length > 0 && (
-                  <div className="rounded-lg bg-red-50 border border-red-200 text-[#991B1B] px-3 py-2 text-xs space-y-1">
-                    <p className="font-semibold flex items-center gap-1.5">
-                      <AlertTriangle className="w-3.5 h-3.5" /> Atenção: sinais de insucesso
-                      presentes
-                    </p>
-                    <ul className="list-disc pl-5">
-                      {alertas.map((a) => (
-                        <li key={a.id}>{a.texto}</li>
-                      ))}
-                    </ul>
-                    <p>
-                      Revise antes de seguir. Se decidir avançar, o alerta fica registrado no
-                      histórico.
-                    </p>
-                  </div>
-                )}
-                <div className="flex flex-wrap justify-end gap-2">
+                <div className="flex justify-end gap-3">
                   <Button
-                    size="sm"
                     variant="ghost"
-                    onClick={() => setConcluindo(false)}
+                    size="lg"
+                    onClick={() => setModoResultado(null)}
                     disabled={salvando}
                   >
                     Cancelar
                   </Button>
-                  <Button size="sm" onClick={concluirEtapa} disabled={salvando}>
-                    {salvando
-                      ? 'Registrando…'
-                      : alertaConfirmado && alertas.length > 0
-                        ? `Avançar mesmo assim para “${proxima.nome}”`
-                        : `Confirmar e seguir para “${proxima.nome}”`}
+                  <Button
+                    size="lg"
+                    onClick={registrarResultado}
+                    disabled={salvando || !motivo.trim()}
+                  >
+                    {salvando ? 'Registrando…' : 'Confirmar'}
                   </Button>
                 </div>
               </div>
-            )}
-
-            {!concluindo && !fechada && (
-              <div className="flex flex-wrap justify-end gap-2">
-                {!atual && lista[0] && (
+            ) : (
+              <div className="flex flex-col gap-3">
+                {fechada ? (
                   <Button
-                    size="sm"
-                    onClick={() => mover(lista[0].id, 'Pipeline iniciado')}
-                    disabled={salvando}
-                  >
-                    Iniciar pipeline
-                  </Button>
-                )}
-                {anterior && (
-                  <Button
-                    size="sm"
+                    size="lg"
                     variant="outline"
-                    onClick={() =>
-                      mover(anterior.id, `Oportunidade voltou para “${anterior.nome}”`)
-                    }
-                    disabled={salvando}
+                    onClick={() => {
+                      setMotivo('')
+                      setModoResultado('reabrir')
+                    }}
                   >
-                    <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Voltar etapa
+                    <RotateCcw className="w-4 h-4 mr-1.5" /> Reabrir oportunidade
                   </Button>
-                )}
-                {proxima && (
-                  <Button size="sm" onClick={abrirConclusao} disabled={salvando}>
-                    <ClipboardCheck className="w-3.5 h-3.5 mr-1" /> Concluir etapa
-                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      size="lg"
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                      onClick={() => {
+                        setMotivo('')
+                        setModoResultado('ganha')
+                      }}
+                    >
+                      <Trophy className="w-4 h-4 mr-1.5" /> Registrar ganho
+                    </Button>
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      className="text-[#B91C1C]"
+                      onClick={() => {
+                        setMotivo('')
+                        setConcorrente('')
+                        setModoResultado('perdida')
+                      }}
+                    >
+                      <ThumbsDown className="w-4 h-4 mr-1.5" /> Registrar perda
+                    </Button>
+                  </>
                 )}
               </div>
             )}
-          </>
-        )}
-      </div>
-
-      {/* Fechamento */}
-      <div className={caixaCls}>
-        <p className={tituloCls}>
-          <Wallet className="w-4 h-4 text-[#DE6464]" /> Fechamento
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs text-muted-foreground mb-1">
-              Ambiente de fechamento
-            </label>
-            <select
-              value={ambiente}
-              onChange={(e) => setAmbiente(e.target.value as AmbienteFechamento | '')}
-              className={campoCls}
-              disabled={fechada}
-            >
-              <option value="">— selecione</option>
-              <option value="Venda em reais">Venda em reais</option>
-              <option value="Locação em reais">Locação em reais</option>
-              <option value="Exportação (EUA)">Exportação (EUA)</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-muted-foreground mb-1">
-              Valor estimado{derivado.moeda ? ` (${derivado.moeda})` : ''}
-            </label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              inputMode="decimal"
-              value={valor}
-              onChange={(e) => setValor(e.target.value)}
-              placeholder="0,00"
-              className={campoCls}
-              disabled={fechada}
-            />
           </div>
         </div>
-        <p className="text-xs text-muted-foreground">
-          Moeda: <span className="font-semibold text-[#030507]">{derivado.moeda || '—'}</span> ·
-          Entidade vendedora:{' '}
-          <span className="font-semibold text-[#030507]">{derivado.entidade || '—'}</span>{' '}
-          (definidas automaticamente pelo ambiente de fechamento)
-        </p>
-        {!fechada && (
-          <div className="flex justify-end">
-            <Button size="sm" variant="outline" onClick={salvarFechamento} disabled={salvando}>
-              {salvando ? 'Salvando…' : 'Salvar fechamento'}
-            </Button>
-          </div>
-        )}
       </div>
-
-      {/* Resultado: ganha / perdida / reabrir */}
-      <div className={caixaCls}>
-        <p className={tituloCls}>
-          <Trophy className="w-4 h-4 text-[#DE6464]" /> Resultado
-        </p>
-        {fechada ? (
-          <p className="text-xs text-[#374151]">
-            <span
-              className={`font-semibold ${item.resultado === 'ganha' ? 'text-[#059669]' : 'text-[#B91C1C]'}`}
-            >
-              {item.resultado === 'ganha' ? 'Ganha' : 'Perdida'}
-            </span>
-            {item.fechado_em && ` em ${formatarDataHora(item.fechado_em)}`}
-            {item.resultado_motivo && ` — ${item.resultado_motivo}`}
-            {item.concorrente && ` (concorrente: ${item.concorrente})`}
-            {item.valor_estimado ? ` · ${formatarValor(item.valor_estimado, item.moeda)}` : ''}
-          </p>
-        ) : (
-          <p className="text-xs text-muted-foreground">
-            Em andamento. Registre o resultado quando a negociação terminar — é preciso informar o
-            motivo e ter o fechamento (ambiente e valor) preenchido.
-          </p>
-        )}
-
-        {modoResultado ? (
-          <div className="space-y-2">
-            <label className="block text-xs text-muted-foreground">
-              {modoResultado === 'reabrir'
-                ? 'Justificativa da reabertura (obrigatória)'
-                : modoResultado === 'ganha'
-                  ? 'Motivo do ganho (obrigatório)'
-                  : 'Motivo da perda (obrigatório)'}
-            </label>
-            <textarea
-              rows={2}
-              value={motivo}
-              onChange={(e) => setMotivo(e.target.value)}
-              className={campoCls}
-            />
-            {modoResultado === 'perdida' && (
-              <input
-                type="text"
-                value={concorrente}
-                onChange={(e) => setConcorrente(e.target.value)}
-                placeholder="Concorrente que venceu (opcional)"
-                className={campoCls}
-              />
-            )}
-            <div className="flex justify-end gap-2">
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setModoResultado(null)}
-                disabled={salvando}
-              >
-                Cancelar
-              </Button>
-              <Button size="sm" onClick={registrarResultado} disabled={salvando || !motivo.trim()}>
-                {salvando ? 'Registrando…' : 'Confirmar'}
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-wrap justify-end gap-2">
-            {fechada ? (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  setMotivo('')
-                  setModoResultado('reabrir')
-                }}
-              >
-                <RotateCcw className="w-3.5 h-3.5 mr-1" /> Reabrir oportunidade
-              </Button>
-            ) : (
-              <>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="text-[#B91C1C]"
-                  onClick={() => {
-                    setMotivo('')
-                    setConcorrente('')
-                    setModoResultado('perdida')
-                  }}
-                >
-                  <ThumbsDown className="w-3.5 h-3.5 mr-1" /> Registrar perda
-                </Button>
-                <Button
-                  size="sm"
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                  onClick={() => {
-                    setMotivo('')
-                    setModoResultado('ganha')
-                  }}
-                >
-                  <Trophy className="w-3.5 h-3.5 mr-1" /> Registrar ganho
-                </Button>
-              </>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Históricos */}
-      {(historico.length > 0 || fechamentos.length > 0) && (
-        <div className="rounded-lg border border-[#E5E7EB] bg-white p-3 text-sm">
-          <p className={`${tituloCls} mb-2`}>
-            <History className="w-4 h-4 text-[#DE6464]" /> Histórico
-          </p>
-          <ul className="space-y-1.5 text-xs">
-            {historico.map((h) => (
-              <li key={h.id} className="flex flex-col">
-                <span className="font-semibold text-[#030507]">
-                  {h.expand?.etapa?.nome || 'Etapa removida'}
-                </span>
-                <span className="text-muted-foreground">
-                  Entrou em {formatarDataHora(h.entrou_em)}
-                  {h.saiu_em ? ` · saiu em ${formatarDataHora(h.saiu_em)}` : ' · etapa atual'}
-                  {h.expand?.responsavel
-                    ? ` · por ${h.expand.responsavel.name || h.expand.responsavel.email}`
-                    : ''}
-                  {respostasPorHist[h.id]
-                    ? ` · checklist com ${respostasPorHist[h.id]} ${respostasPorHist[h.id] === 1 ? 'item registrado' : 'itens registrados'}`
-                    : ''}
-                </span>
-              </li>
-            ))}
-            {fechamentos.map((f) => (
-              <li key={f.id} className="flex flex-col">
-                <span className="font-semibold text-[#030507]">
-                  {f.acao === 'reabertura'
-                    ? 'Oportunidade reaberta'
-                    : f.resultado === 'ganha'
-                      ? 'Oportunidade ganha'
-                      : 'Oportunidade perdida'}
-                </span>
-                <span className="text-muted-foreground">
-                  {formatarDataHora(f.registrado_em)} — {f.motivo}
-                  {f.concorrente ? ` (concorrente: ${f.concorrente})` : ''}
-                  {f.expand?.registrado_por
-                    ? ` · por ${f.expand.registrado_por.name || f.expand.registrado_por.email}`
-                    : ''}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </div>
   )
 }

@@ -26,6 +26,12 @@ export default {
       },
     },
     extend: {
+      // Bloco B (legibilidade): escala tipográfica do CRM — nenhum texto de trabalho abaixo de
+      // 14 px. text-xs (antes 12 px) = 14 px; text-sm (antes 14 px) = 15 px; text-base = 16 px.
+      fontSize: {
+        xs: ['0.875rem', { lineHeight: '1.3rem' }],
+        sm: ['0.9375rem', { lineHeight: '1.4rem' }],
+      },
       fontFamily: {
         sans: ['Inter var', 'SF Pro Display', 'system-ui', 'sans-serif'],
         display: ['SF Pro Display', 'Inter var', 'system-ui', 'sans-serif'],

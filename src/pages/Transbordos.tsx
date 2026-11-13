@@ -334,7 +334,7 @@ export default function Transbordos() {
 
       {/* Modal de tratamento */}
       <Dialog open={!!itemSelecionado} onOpenChange={(open) => !open && setItemSelecionado(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-3xl w-[95vw] max-h-[92vh] overflow-y-auto p-6 lg:p-8">
           <DialogHeader>
             <DialogTitle>
               Transbordo — {itemSelecionado ? nomeLead(itemSelecionado) : ''}

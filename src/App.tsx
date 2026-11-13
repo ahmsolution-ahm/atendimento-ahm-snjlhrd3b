@@ -24,6 +24,7 @@ const Produtos = lazy(() => import('@/pages/Produtos'))
 const Leads = lazy(() => import('@/pages/Leads'))
 const Transbordos = lazy(() => import('@/pages/Transbordos'))
 const Oportunidades = lazy(() => import('@/pages/Oportunidades'))
+const OportunidadeDetalhe = lazy(() => import('@/pages/OportunidadeDetalhe'))
 const Metricas = lazy(() => import('@/pages/Metricas'))
 
 // Tela de carregamento durante a troca de página (sem tela em branco)
@@ -80,6 +81,7 @@ const App = () => (
               <Route path="/leads" element={<Leads />} />
               <Route path="/transbordos" element={<Transbordos />} />
               <Route path="/oportunidades" element={<Oportunidades />} />
+              <Route path="/oportunidades/:id" element={<OportunidadeDetalhe />} />
               <Route path="/metricas" element={<Metricas />} />
             </Route>
 

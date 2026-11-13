@@ -850,7 +850,7 @@ export default function Leads() {
 
       {/* Modal Editar Lead (F1-T08) */}
       <Dialog open={!!editLead} onOpenChange={(open) => !open && setEditLead(null)}>
-        <DialogContent className="max-w-lg bg-white p-6 rounded-2xl modal-ahm max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl w-[95vw] bg-white p-6 lg:p-8 rounded-2xl modal-ahm max-h-[92vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold text-[#030507]">Editar Lead</DialogTitle>
             <DialogDescription className="text-xs text-[#6B7280]">
@@ -1383,7 +1383,7 @@ export default function Leads() {
 
       {/* Modal Novo Lead */}
       <Dialog open={isNewModalOpen} onOpenChange={setIsNewModalOpen}>
-        <DialogContent className="max-w-lg bg-white p-6 rounded-2xl modal-ahm max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl w-[95vw] bg-white p-6 lg:p-8 rounded-2xl modal-ahm max-h-[92vh] overflow-y-auto">
           <DialogHeader>
             <div className="w-10 h-10 rounded-xl bg-[#DE6464]/10 text-[#DE6464] flex items-center justify-center mb-2">
               <UserPlus className="w-5 h-5" />

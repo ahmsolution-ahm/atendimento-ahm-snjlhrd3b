@@ -78,7 +78,7 @@ export default function Login() {
 
     setIsLoading(true)
     try {
-      await login(email, password)
+      await login(email, password, rememberMe)
       toast({
         title: 'Bem-vindo de volta!',
         description: 'Login realizado com sucesso no Portal AHM Solution.',

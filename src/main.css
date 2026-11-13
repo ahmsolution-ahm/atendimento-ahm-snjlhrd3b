@@ -71,6 +71,15 @@
       sans-serif;
   }
 
+  /* Bloco B (legibilidade): textos auxiliares fixados em 9–11 px pelas telas antigas passam a
+     ter piso de 13 px (rótulos, contadores, selos). */
+  .text-\[9px\],
+  .text-\[10px\],
+  .text-\[11px\] {
+    font-size: 0.8125rem !important;
+    line-height: 1.15rem !important;
+  }
+
   /* NEVER REMOVE THIS */
   section[aria-label='Notifications alt+T'] {
     padding: 0 !important;
