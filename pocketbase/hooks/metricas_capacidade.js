@@ -2,7 +2,9 @@
 // Motivo: a coleção users só permite a cada usuário ver o próprio cadastro, então o
 // navegador não consegue listar os vendedores. A rota agrega as contagens e devolve apenas
 // nome + quantidade (nunca e-mail ou outros dados de usuário).
-// Entrada (query): dias = 7 | 30 | 90 | todos; fonte = todas | manual | csv | demo.
+// Entrada (query): dias = 7 | 30 | 90 | todos; fonte = todas | manual | csv | lp | demo | outras.
+// F2-T09: "lp" = origem LP (Landing Page); "outras" = qualquer origem fora das demais fatias,
+// para que a soma das fatias feche com o total.
 // Valores fora da lista são recusados; a consulta usa parâmetros (sem SQL montado do cliente).
 // Processado = lead que passou pela qualificação (não é novo, não está em qualificação,
 // não é rascunho). Sem responsável = pendência de dados.
@@ -29,7 +31,9 @@ routerAdd(
       todas: '',
       manual: " AND COALESCE(origem, '') = ''",
       csv: " AND origem = 'Importação CSV'",
+      lp: " AND origem = 'LP'",
       demo: " AND origem = 'Demonstração'",
+      outras: " AND COALESCE(origem, '') NOT IN ('', 'Importação CSV', 'LP', 'Demonstração')",
     }
     if (!Object.prototype.hasOwnProperty.call(fontes, fonte)) {
       throw new BadRequestError('Fonte inválida para o cálculo das métricas.')

@@ -29,7 +29,7 @@ export type DadosK3 = ResultadoK3
 
 // períodos e fontes aceitos pela rota de capacidade (valores fixos — o servidor recusa outros)
 export type DiasMetricas = 7 | 30 | 90 | null
-export type FonteMetricas = 'todas' | 'manual' | 'csv' | 'demo'
+export type FonteMetricas = 'todas' | 'manual' | 'csv' | 'lp' | 'demo' | 'outras'
 
 export const metricasService = {
   /**

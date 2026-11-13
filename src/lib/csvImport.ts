@@ -25,11 +25,7 @@ export interface CsvLeadRow {
 // F2-T01: valores aceitos nas colunas novas — comparação sem acento e sem maiúsculas,
 // com apelidos comuns; valor fora da lista torna a linha inválida (como a urgência).
 const semAcento = (s: string) =>
-  (s || '')
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+  (s || '').trim().toLowerCase().normalize('NFD').replace(/\p{M}/gu, '')
 
 const AREAS: Record<string, string> = {
   'qualidade no transporte': 'Qualidade no Transporte',

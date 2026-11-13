@@ -29,7 +29,8 @@ import {
 import { Target, Mail, Phone, CheckCircle2, XCircle, RotateCcw } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { oportunidadesService, type OportunidadesContadores } from '@/services/oportunidades'
-import type { OportunidadeRecord } from '@/types'
+import PipelineOportunidade from '@/components/PipelineOportunidade'
+import type { OportunidadeRecord, PipelineEtapaRecord } from '@/types'
 
 const POR_PAGINA = 20
 
@@ -89,6 +90,15 @@ export default function Oportunidades() {
   const [modo, setModo] = useState<ModoDecisao>(null)
   const [texto, setTexto] = useState('')
   const [salvando, setSalvando] = useState(false)
+  // F2-T03: etapas das duas trilhas (carregadas uma vez)
+  const [etapas, setEtapas] = useState<PipelineEtapaRecord[]>([])
+
+  useEffect(() => {
+    oportunidadesService
+      .etapas()
+      .then(setEtapas)
+      .catch(() => setEtapas([]))
+  }, [])
 
   const carregar = useCallback(
     async (pag: number, filtro?: string) => {
@@ -425,6 +435,16 @@ export default function Oportunidades() {
                   </div>
                 </div>
               )}
+
+              {/* F2-T02/T03/T04: fechamento, pipeline de duas trilhas e histórico de etapas */}
+              <PipelineOportunidade
+                item={itemSelecionado}
+                etapas={etapas}
+                onAtualizado={(atualizado) => {
+                  setItemSelecionado(atualizado)
+                  carregar(pagina)
+                }}
+              />
 
               {/* Campo de comentário da decisão em andamento */}
               {modo && (

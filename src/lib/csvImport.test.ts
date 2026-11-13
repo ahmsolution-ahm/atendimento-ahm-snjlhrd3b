@@ -5,6 +5,9 @@ import {
   detectarDuplicadasNoArquivo,
   mapearCabecalhos,
   mensagemImportacao,
+  normalizarArea,
+  normalizarIdioma,
+  normalizarModeloCompra,
   selecionarNovos,
   telefoneDaLinha,
   validarLinhas,
@@ -33,6 +36,65 @@ describe('mapeamento de cabeçalhos de telefone', () => {
     const { validas } = validarLinhas([['Ana', 'Alfa', 'ana@alfa.com.br']], mapa)
     expect(validas[0].telefone).toBeUndefined()
     expect(telefoneDaLinha(validas[0])).toBe('')
+  })
+})
+
+// F2-T01: colunas opcionais de entrada
+describe('campos de entrada na importação', () => {
+  it('cabeçalhos mapeados', () => {
+    expect(mapearCabecalhos(['Área de interesse', 'País', 'Idioma', 'Modelo de compra'])).toEqual([
+      'area_interesse',
+      'pais',
+      'idioma',
+      'modelo_compra',
+    ])
+  })
+
+  it('valores normalizados sem acento e sem maiúsculas', () => {
+    expect(normalizarArea('cadeia do frio')).toBe('Cadeia do Frio')
+    expect(normalizarArea('SEGURANCA E LOGISTICA')).toBe('Segurança e Logística')
+    expect(normalizarIdioma('Português')).toBe('pt-BR')
+    expect(normalizarIdioma('english')).toBe('en')
+    expect(normalizarModeloCompra('importacao')).toBe('Importação')
+  })
+
+  it('linha válida grava os valores canônicos', () => {
+    const mapa = mapearCabecalhos([
+      'Nome',
+      'Empresa',
+      'Email',
+      'Área',
+      'País',
+      'Idioma',
+      'Modelo de compra',
+    ])
+    const { validas } = validarLinhas(
+      [['Ana', 'Alfa', 'ana@alfa.com.br', 'frio', 'Chile', 'es', 'Nacional']],
+      mapa,
+    )
+    expect(validas[0]).toMatchObject({
+      area_interesse: 'Cadeia do Frio',
+      pais: 'Chile',
+      idioma: 'es',
+      modelo_compra: 'Nacional',
+    })
+  })
+
+  it('valor fora da lista torna a linha inválida com motivo claro', () => {
+    const mapa = mapearCabecalhos(['Nome', 'Empresa', 'Email', 'Área'])
+    const { validas, invalidas } = validarLinhas(
+      [['Ana', 'Alfa', 'ana@alfa.com.br', 'Agronegócio']],
+      mapa,
+    )
+    expect(validas).toHaveLength(0)
+    expect(invalidas[0].motivo).toMatch(/^Área de interesse inválida: Agronegócio/)
+  })
+
+  it('arquivo sem as colunas novas continua válido', () => {
+    const mapa = mapearCabecalhos(['Nome', 'Empresa', 'Email'])
+    const { validas } = validarLinhas([['Ana', 'Alfa', 'ana@alfa.com.br']], mapa)
+    expect(validas[0].area_interesse).toBeUndefined()
+    expect(validas[0].idioma).toBeUndefined()
   })
 })
 

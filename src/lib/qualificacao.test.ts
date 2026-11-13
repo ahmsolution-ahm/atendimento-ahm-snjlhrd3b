@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { qualificar, justificativa, type LeadQualificacao } from './qualificacao'
+import {
+  familiasPorArea,
+  qualificar,
+  justificativa,
+  sugestaoFamilias,
+  type LeadQualificacao,
+} from './qualificacao'
 
 // Regras do motor de qualificação (SPEC 1.3) — protege contra regressão a cada versão.
 
@@ -57,6 +63,30 @@ describe('motor de qualificação', () => {
     const r = qualificar(lead({ urgencia: '' }), produto)
     expect(r.status).toBe('pendente')
     expect(r.pendencias).toContain('Urgência não informada')
+  })
+
+  // F2-T01: a área de interesse sugere famílias de diagnóstico (sugestão, não bloqueio)
+  it('área de interesse sugere famílias candidatas', () => {
+    expect(familiasPorArea('Cadeia do Frio')).toEqual(['2'])
+    expect(familiasPorArea('Segurança e Logística')).toEqual(['4', '4a', '5'])
+    expect(familiasPorArea('Qualidade no Transporte')).toEqual(['1', '3', '6', '7'])
+    expect(familiasPorArea('')).toEqual([])
+    expect(sugestaoFamilias('Segurança e Logística')).toBe(
+      'Área de interesse Segurança e Logística — famílias de diagnóstico sugeridas: 4, 4a e 5',
+    )
+    expect(sugestaoFamilias('Cadeia do Frio')).toBe(
+      'Área de interesse Cadeia do Frio — família de diagnóstico sugerida: 2',
+    )
+  })
+
+  it('sugestão entra na justificativa sem mudar o status', () => {
+    const r = qualificar(lead({ area_interesse: 'Cadeia do Frio' }), produto)
+    expect(r.status).toBe('qualificado')
+    expect(justificativa(r)).toContain('família de diagnóstico sugerida: 2.')
+  })
+
+  it('sem área de interesse a justificativa não muda', () => {
+    expect(qualificar(lead(), produto).motivos.join(' ')).not.toContain('família')
   })
 
   it('justificativa sem códigos internos e com pontuação final', () => {

@@ -1,5 +1,10 @@
 import pb from '@/lib/pocketbase/client'
-import type { OportunidadeRecord } from '@/types'
+import type {
+  AmbienteFechamento,
+  OportunidadeEtapaRecord,
+  OportunidadeRecord,
+  PipelineEtapaRecord,
+} from '@/types'
 
 export interface OportunidadesPaginadas {
   itens: OportunidadeRecord[]
@@ -17,7 +22,7 @@ export interface OportunidadesContadores {
   emRevisao: number
 }
 
-const EXPAND = 'lead,produto,decidido_por'
+const EXPAND = 'lead,produto,decidido_por,etapa_atual'
 
 // F1-T14: o comentario acumula o histórico — cada decisão acrescenta uma linha
 const acumularComentario = (anterior: string | undefined, linha: string) => {
@@ -67,6 +72,46 @@ export const oportunidadesService = {
     return await pb.collection('oportunidades').getOne<OportunidadeRecord>(id, {
       expand: EXPAND,
     })
+  },
+
+  // F2-T03: etapas das duas trilhas (13 registros fixos — coleção pequena)
+  async etapas(): Promise<PipelineEtapaRecord[]> {
+    const r = await pb
+      .collection('pipeline_etapas')
+      .getList<PipelineEtapaRecord>(1, 50, { sort: 'trilha,ordem' })
+    return r.items
+  },
+
+  // F2-T04: histórico de passagem por etapa, em ordem cronológica
+  async historico(oportunidadeId: string): Promise<OportunidadeEtapaRecord[]> {
+    const r = await pb.collection('oportunidade_etapas').getList<OportunidadeEtapaRecord>(1, 100, {
+      filter: pb.filter('oportunidade = {:id}', { id: oportunidadeId }),
+      sort: 'entrou_em,created',
+      expand: 'etapa,responsavel',
+    })
+    return r.items
+  },
+
+  // F2-T02: ambiente de fechamento + valor estimado (moeda e entidade são derivadas no servidor)
+  async salvarFechamento(
+    id: string,
+    ambiente: AmbienteFechamento | '',
+    valor: number | null,
+  ): Promise<OportunidadeRecord> {
+    return await pb
+      .collection('oportunidades')
+      .update<OportunidadeRecord>(
+        id,
+        { ambiente_fechamento: ambiente, valor_estimado: valor ?? 0 },
+        { expand: EXPAND },
+      )
+  },
+
+  // F2-T03/T04: troca de etapa — o servidor valida trilha e campos de fechamento e grava o histórico
+  async moverEtapa(id: string, etapaId: string): Promise<OportunidadeRecord> {
+    return await pb
+      .collection('oportunidades')
+      .update<OportunidadeRecord>(id, { etapa_atual: etapaId }, { expand: EXPAND })
   },
 
   // F1-T14: aprovar — comentário opcional (decidido_em/por gravados pelo hook)

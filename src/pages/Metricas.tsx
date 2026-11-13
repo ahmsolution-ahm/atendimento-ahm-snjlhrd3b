@@ -29,7 +29,10 @@ const FONTES = [
   { rotulo: 'Todas as fontes', valor: 'todas' },
   { rotulo: 'Cadastro manual', valor: 'manual' },
   { rotulo: 'Importação CSV', valor: 'csv' },
+  // F2-T09: origem "LP" (Landing Page) como fatia própria; "Outras" fecha a soma com o total
+  { rotulo: 'Landing Page', valor: 'lp' },
   { rotulo: 'Demonstração', valor: 'demo' },
+  { rotulo: 'Outras origens', valor: 'outras' },
 ] as const
 type Fonte = (typeof FONTES)[number]['valor']
 
@@ -42,6 +45,10 @@ const filtroFonte = (fonte: Fonte, campo: string): string => {
       return `${campo} = 'Importação CSV'`
     case 'demo':
       return `${campo} = '${ORIGEM_DEMO}'`
+    case 'lp':
+      return `${campo} = 'LP'`
+    case 'outras':
+      return `${campo} != '' && ${campo} != 'Importação CSV' && ${campo} != 'LP' && ${campo} != '${ORIGEM_DEMO}'`
     default:
       return ''
   }
