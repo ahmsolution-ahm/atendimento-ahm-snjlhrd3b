@@ -3,9 +3,11 @@
 
 // 1) Responsável herdado do lead na criação (qualquer origem: motor de qualificação,
 //    demonstração, script). Lead sem responsável → oportunidade sem responsável (honesto).
+// Bloco D: oportunidade importada do Pipedrive NÃO herda — o dono é o proprietário do negócio no
+// Pipedrive (mapeado para um usuário) ou fica sem responsável, com o nome original guardado.
 onRecordCreate((e) => {
   const r = e.record
-  if (!r.getString('responsavel') && r.getString('lead')) {
+  if (!r.getString('responsavel') && r.getString('lead') && r.getString('pipedrive_id') === '') {
     try {
       const lead = $app.findRecordById('leads', r.getString('lead'))
       const resp = lead.getString('responsavel')
@@ -84,7 +86,9 @@ routerAdd(
     if (resp === 'sem') base += " AND COALESCE(o.responsavel, '') = ''"
     else if (resp !== 'todos') base += ' AND o.responsavel = {:resp}'
     const aberta = " AND COALESCE(o.resultado, '') = '' AND o.status != 'Rejeitada'"
-    const criadaNoPeriodo = inicio ? ' AND o.created >= {:inicio}' : ''
+    // Bloco D: data de criação = a original (criado_em; no histórico importado, a do Pipedrive)
+    const criado = "COALESCE(NULLIF(o.criado_em, ''), o.created)"
+    const criadaNoPeriodo = inicio ? ' AND ' + criado + ' >= {:inicio}' : ''
     const fechadaNoPeriodo =
       " AND COALESCE(o.fechado_em, '') != ''" + (inicio ? ' AND o.fechado_em >= {:inicio}' : '')
 
@@ -210,7 +214,9 @@ routerAdd(
     // ---- meses do período
     const mesesSet = {}
     const criadasLinhas = consultar(
-      'SELECT substr(o.created, 1, 7) AS mes, COUNT(*) AS n FROM oportunidades o WHERE ' +
+      'SELECT substr(' +
+        criado +
+        ', 1, 7) AS mes, COUNT(*) AS n FROM oportunidades o WHERE ' +
         base +
         criadaNoPeriodo +
         ' GROUP BY 1',
@@ -351,7 +357,9 @@ routerAdd(
     // ---- duração
     const duracaoLinhas = consultar(
       'SELECT o.resultado AS resultado, COUNT(*) AS n, ' +
-        'CAST(ROUND(COALESCE(AVG(julianday(o.fechado_em) - julianday(o.created)), 0) * 10) AS INTEGER) AS d ' +
+        'CAST(ROUND(COALESCE(AVG(julianday(o.fechado_em) - julianday(' +
+        criado +
+        ')), 0) * 10) AS INTEGER) AS d ' +
         'FROM oportunidades o WHERE ' +
         base +
         " AND o.resultado IN ('ganha', 'perdida')" +
@@ -397,10 +405,14 @@ routerAdd(
     }
 
     // ---- funil pré-venda → comercial
-    let baseLead = "COALESCE(l.origem, '') != 'Demonstração' AND COALESCE(l.incompleto, 0) = 0"
+    // Bloco D: leads do Pipedrive contam (vieram sem contato na exportação, por isso entram como
+    // rascunho) e valem pela data original de entrada
+    let baseLead =
+      "COALESCE(l.origem, '') != 'Demonstração' AND (COALESCE(l.incompleto, 0) = 0 OR COALESCE(l.pipedrive_id, '') != '')"
     if (resp === 'sem') baseLead += " AND COALESCE(l.responsavel, '') = ''"
     else if (resp !== 'todos') baseLead += ' AND l.responsavel = {:resp}'
-    if (inicio) baseLead += ' AND l.created >= {:inicio}'
+    if (inicio)
+      baseLead += " AND COALESCE(NULLIF(l.pipedrive_criado_em, ''), l.created) >= {:inicio}"
     const leadsLinhas = consultar(
       "SELECT COUNT(*) AS recebidos, COALESCE(SUM(CASE WHEN l.status = 'qualificado' THEN 1 ELSE 0 END), 0) AS qualificados " +
         'FROM leads l WHERE ' +
@@ -411,7 +423,8 @@ routerAdd(
       'SELECT COUNT(*) AS criadas, ' +
         "COALESCE(SUM(CASE WHEN o.status = 'Aprovada' THEN 1 ELSE 0 END), 0) AS aprovadas, " +
         'COALESCE(SUM(CASE WHEN EXISTS (SELECT 1 FROM oportunidade_etapas h JOIN pipeline_etapas p ON p.id = h.etapa ' +
-        "WHERE h.oportunidade = o.id AND p.fase IN ('Venda', 'Pós-venda')) THEN 1 ELSE 0 END), 0) AS venda, " +
+        "WHERE h.oportunidade = o.id AND p.fase IN ('Venda', 'Pós-venda')) " +
+        "OR o.etapa_atual IN (SELECT id FROM pipeline_etapas WHERE fase IN ('Venda', 'Pós-venda')) THEN 1 ELSE 0 END), 0) AS venda, " +
         "COALESCE(SUM(CASE WHEN o.resultado = 'ganha' THEN 1 ELSE 0 END), 0) AS ganhas " +
         'FROM oportunidades o WHERE ' +
         base +

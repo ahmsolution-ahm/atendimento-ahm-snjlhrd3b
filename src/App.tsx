@@ -19,6 +19,7 @@ const NotFound = lazy(() => import('@/pages/NotFound'))
 // Bloco C: a tela inicial passou a ser a "Minha mesa" (o antigo painel de tickets saiu)
 const MinhaMesa = lazy(() => import('@/pages/MinhaMesa'))
 const Desempenho = lazy(() => import('@/pages/Desempenho'))
+const ImportarPipedrive = lazy(() => import('@/pages/ImportarPipedrive'))
 const Tickets = lazy(() => import('@/pages/Tickets'))
 const Atendimentos = lazy(() => import('@/pages/Atendimentos'))
 const Equipe = lazy(() => import('@/pages/Equipe'))
@@ -70,6 +71,14 @@ const App = () => (
             >
               <Route path="/" element={<MinhaMesa />} />
               <Route path="/desempenho" element={<Desempenho />} />
+              <Route
+                path="/importar-pipedrive"
+                element={
+                  <SomenteAdmin>
+                    <ImportarPipedrive />
+                  </SomenteAdmin>
+                }
+              />
               <Route path="/tickets" element={<Tickets />} />
               <Route path="/atendimentos" element={<Atendimentos />} />
               <Route

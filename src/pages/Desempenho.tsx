@@ -393,9 +393,14 @@ export default function Desempenho() {
             <RefreshCw className={`w-4 h-4 mr-1.5 ${carregando ? 'animate-spin' : ''}`} /> Atualizar
           </Button>
           {isAdmin && (
-            <Button variant="outline" size="lg" onClick={abrirConfig}>
-              <Settings className="w-4 h-4 mr-1.5" /> Configurações
-            </Button>
+            <>
+              <Button variant="outline" size="lg" asChild>
+                <Link to="/importar-pipedrive">Importar do Pipedrive</Link>
+              </Button>
+              <Button variant="outline" size="lg" onClick={abrirConfig}>
+                <Settings className="w-4 h-4 mr-1.5" /> Configurações
+              </Button>
+            </>
           )}
         </div>
       </div>

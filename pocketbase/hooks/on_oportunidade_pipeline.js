@@ -14,8 +14,14 @@
 // abre a nova com entrou_em). Nada é apagado.
 // Obs.: toda a lógica fica DENTRO dos callbacks (o JSVM não enxerga funções de topo).
 
+// Bloco D — exceção para o histórico IMPORTADO do Pipedrive (pipedrive_id preenchido):
+//   - sem ambiente de fechamento (o Pipedrive não informa venda × locação), a moeda original
+//     BRL/USD é mantida e a entidade fica vazia — nada é inventado;
+//   - sem produto vinculado, a trilha gravada na importação (alta — decisão do owner) é mantida.
+// Para todo o resto (oportunidades criadas no CRM) as regras continuam as mesmas.
 onRecordCreate((e) => {
   const r = e.record
+  const importado = r.getString('pipedrive_id') !== ''
 
   const ambiente = r.getString('ambiente_fechamento')
   if (ambiente === 'Exportação (EUA)') {
@@ -24,6 +30,8 @@ onRecordCreate((e) => {
   } else if (ambiente === 'Venda em reais' || ambiente === 'Locação em reais') {
     r.set('moeda', 'BRL')
     r.set('entidade_vendedora', 'AHM Brasil')
+  } else if (importado && (r.getString('moeda') === 'BRL' || r.getString('moeda') === 'USD')) {
+    r.set('entidade_vendedora', '')
   } else {
     r.set('moeda', '')
     r.set('entidade_vendedora', '')
@@ -31,7 +39,10 @@ onRecordCreate((e) => {
 
   let trilha = ''
   const produtoId = r.getString('produto')
-  if (produtoId !== '') {
+  if (importado && produtoId === '') {
+    const t = r.getString('trilha')
+    trilha = t === 'alta' || t === 'baixa' ? t : ''
+  } else if (produtoId !== '') {
     try {
       const c = $app.findRecordById('produtos', produtoId).getString('complexidade')
       trilha = c === 'Alta' ? 'alta' : c === 'Baixa' ? 'baixa' : ''
@@ -76,6 +87,7 @@ onRecordCreate((e) => {
 onRecordUpdate((e) => {
   const r = e.record
   const o = r.original()
+  const importado = r.getString('pipedrive_id') !== ''
 
   const ambiente = r.getString('ambiente_fechamento')
   if (ambiente === 'Exportação (EUA)') {
@@ -84,6 +96,9 @@ onRecordUpdate((e) => {
   } else if (ambiente === 'Venda em reais' || ambiente === 'Locação em reais') {
     r.set('moeda', 'BRL')
     r.set('entidade_vendedora', 'AHM Brasil')
+  } else if (importado && (o.getString('moeda') === 'BRL' || o.getString('moeda') === 'USD')) {
+    r.set('moeda', o.getString('moeda'))
+    r.set('entidade_vendedora', '')
   } else {
     r.set('moeda', '')
     r.set('entidade_vendedora', '')
@@ -93,10 +108,12 @@ onRecordUpdate((e) => {
     throw new BadRequestError('O valor estimado não pode ser negativo.')
   }
 
-  // RN-2.1: a trilha acompanha a complexidade do produto
+  // RN-2.1: a trilha acompanha a complexidade do produto (importado sem produto: mantém a gravada)
   let trilha = ''
   const produtoId = r.getString('produto')
-  if (produtoId !== '') {
+  if (importado && produtoId === '') {
+    trilha = o.getString('trilha')
+  } else if (produtoId !== '') {
     try {
       const c = $app.findRecordById('produtos', produtoId).getString('complexidade')
       trilha = c === 'Alta' ? 'alta' : c === 'Baixa' ? 'baixa' : ''
@@ -184,12 +201,14 @@ onRecordCreateRequest((e) => {
   return e.next()
 }, 'oportunidades')
 
-// RN-2.2: histórico de passagem — abre a 1ª etapa na criação
+// RN-2.2: histórico de passagem — abre a 1ª etapa na criação.
+// Bloco D: oportunidade importada do Pipedrive NÃO ganha registro de passagem (o Pipedrive não
+// exporta o histórico de etapas; um registro só da etapa final distorceria as taxas de passagem).
 onRecordAfterCreateSuccess((e) => {
   try {
     const r = e.record
     const etapaId = r.getString('etapa_atual')
-    if (etapaId !== '') {
+    if (etapaId !== '' && r.getString('pipedrive_id') === '') {
       const col = $app.findCollectionByNameOrId('oportunidade_etapas')
       const h = new Record(col)
       h.set('oportunidade', r.id)
