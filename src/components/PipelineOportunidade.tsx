@@ -14,7 +14,9 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
+import { useAuth } from '@/contexts/AuthContext'
 import { oportunidadesService } from '@/services/oportunidades'
+import { desempenhoService, type MotivoPerdaRecord } from '@/services/desempenho'
 import {
   camposFaltantesParaMover,
   derivarFechamento,
@@ -71,6 +73,7 @@ export default function PipelineOportunidade({
   lateral?: ReactNode
 }) {
   const { toast } = useToast()
+  const { isAdmin } = useAuth()
   const [ambiente, setAmbiente] = useState<AmbienteFechamento | ''>(item.ambiente_fechamento || '')
   const [valor, setValor] = useState<string>(
     item.valor_estimado && item.valor_estimado > 0 ? String(item.valor_estimado) : '',
@@ -91,6 +94,27 @@ export default function PipelineOportunidade({
   const [modoResultado, setModoResultado] = useState<null | 'ganha' | 'perdida' | 'reabrir'>(null)
   const [motivo, setMotivo] = useState('')
   const [concorrente, setConcorrente] = useState('')
+  // Bloco C: motivo de perda da lista fixa (carregada ao abrir o registro de perda)
+  const [motivosPerda, setMotivosPerda] = useState<MotivoPerdaRecord[]>([])
+  const [motivoPerdaId, setMotivoPerdaId] = useState('')
+
+  useEffect(() => {
+    if (modoResultado !== 'perdida' || motivosPerda.length > 0) return
+    desempenhoService
+      .motivosPerda(true)
+      .then(setMotivosPerda)
+      .catch(() => setMotivosPerda([]))
+  }, [modoResultado, motivosPerda.length])
+
+  const motivoEscolhido = motivosPerda.find((m) => m.id === motivoPerdaId)
+  const gruposMotivo = useMemo(() => {
+    const mapa = new Map<string, MotivoPerdaRecord[]>()
+    for (const m of motivosPerda) {
+      const g = m.grupo || 'Outros'
+      mapa.set(g, [...(mapa.get(g) || []), m])
+    }
+    return [...mapa.entries()]
+  }, [motivosPerda])
 
   useEffect(() => {
     setAmbiente(item.ambiente_fechamento || '')
@@ -106,9 +130,11 @@ export default function PipelineOportunidade({
 
   const carregarHistoricos = useCallback(async () => {
     try {
+      // Bloco C: o histórico de fechamentos é restrito ao administrador — o vendedor nem pede
+      // (antes: requisição recusada e erro no log a cada abertura)
       const [h, f] = await Promise.all([
         oportunidadesService.historico(item.id),
-        oportunidadesService.fechamentos(item.id),
+        isAdmin ? oportunidadesService.fechamentos(item.id) : Promise.resolve([]),
       ])
       setHistorico(h)
       setFechamentos(f)
@@ -124,7 +150,7 @@ export default function PipelineOportunidade({
       setHistorico([])
       setFechamentos([])
     }
-  }, [item.id])
+  }, [item.id, isAdmin])
 
   useEffect(() => {
     carregarHistoricos()
@@ -254,12 +280,14 @@ export default function PipelineOportunidade({
           modoResultado,
           motivo,
           concorrente,
+          motivoPerdaId,
         )
         toast({ title: modoResultado === 'ganha' ? 'Oportunidade ganha' : 'Oportunidade perdida' })
       }
       setModoResultado(null)
       setMotivo('')
       setConcorrente('')
+      setMotivoPerdaId('')
       onAtualizado(atualizado)
       await carregarHistoricos()
     } catch (err) {
@@ -659,6 +687,11 @@ export default function PipelineOportunidade({
                     : ''}
                 </p>
                 {item.fechado_em && <p>Em {formatarDataHora(item.fechado_em)}</p>}
+                {item.resultado === 'perdida' && item.expand?.motivo_perda?.nome && (
+                  <p>
+                    Motivo: <span className="font-semibold">{item.expand.motivo_perda.nome}</span>
+                  </p>
+                )}
                 {item.resultado_motivo && <p>{item.resultado_motivo}</p>}
                 {item.concorrente && <p>Concorrente: {item.concorrente}</p>}
               </div>
@@ -671,12 +704,35 @@ export default function PipelineOportunidade({
 
             {modoResultado ? (
               <div className="space-y-3">
+                {modoResultado === 'perdida' && (
+                  <div>
+                    <label className={rotuloCls}>Motivo da perda (obrigatório)</label>
+                    <select
+                      value={motivoPerdaId}
+                      onChange={(e) => setMotivoPerdaId(e.target.value)}
+                      className={campoCls}
+                    >
+                      <option value="">Selecione o motivo</option>
+                      {gruposMotivo.map(([grupo, itens]) => (
+                        <optgroup key={grupo} label={grupo}>
+                          {itens.map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {m.nome}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <label className={rotuloCls}>
                   {modoResultado === 'reabrir'
                     ? 'Justificativa da reabertura (obrigatória)'
                     : modoResultado === 'ganha'
                       ? 'Motivo do ganho (obrigatório)'
-                      : 'Motivo da perda (obrigatório)'}
+                      : motivoEscolhido?.exige_detalhe
+                        ? 'Observação (obrigatória para este motivo)'
+                        : 'Observação (opcional)'}
                 </label>
                 <textarea
                   rows={3}
@@ -743,6 +799,7 @@ export default function PipelineOportunidade({
                       onClick={() => {
                         setMotivo('')
                         setConcorrente('')
+                        setMotivoPerdaId('')
                         setModoResultado('perdida')
                       }}
                     >

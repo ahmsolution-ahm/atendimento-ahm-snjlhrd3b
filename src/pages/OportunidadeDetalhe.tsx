@@ -9,8 +9,12 @@ import {
   Phone,
   RotateCcw,
   User,
+  UserCheck,
   XCircle,
 } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
+import { usersService } from '@/services/users'
+import type { UserRecord } from '@/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
@@ -83,6 +87,18 @@ const tituloCls = 'text-lg font-bold text-[#030507] flex items-center gap-2'
 export default function OportunidadeDetalhe() {
   const { id } = useParams<{ id: string }>()
   const { toast } = useToast()
+  const { isAdmin } = useAuth()
+  const [usuarios, setUsuarios] = useState<UserRecord[]>([])
+  const [salvandoResp, setSalvandoResp] = useState(false)
+
+  // Bloco C: o administrador pode trocar o responsável (o servidor recusa de não-admin)
+  useEffect(() => {
+    if (!isAdmin) return
+    usersService
+      .list()
+      .then(setUsuarios)
+      .catch(() => setUsuarios([]))
+  }, [isAdmin])
 
   const [item, setItem] = useState<OportunidadeRecord | null>(null)
   const [etapas, setEtapas] = useState<PipelineEtapaRecord[]>([])
@@ -181,8 +197,59 @@ export default function OportunidadeDetalhe() {
   const nomeDecisor =
     item.expand?.decidido_por?.name || item.expand?.decidido_por?.email || 'Usuário'
 
+  const trocarResponsavel = async (novo: string) => {
+    if (!item) return
+    setSalvandoResp(true)
+    try {
+      const atualizado = await oportunidadesService.alterarResponsavel(item.id, novo)
+      setItem(atualizado)
+      toast({ title: 'Responsável atualizado' })
+    } catch (err) {
+      toast({
+        title: 'Não foi possível trocar o responsável',
+        description: err instanceof Error ? err.message : 'Ocorreu uma falha inesperada.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSalvandoResp(false)
+    }
+  }
+
+  const nomeResponsavel = item.expand?.responsavel?.name || item.expand?.responsavel?.email || ''
+
   const lateral = (
     <>
+      {/* Responsável (dono da oportunidade) */}
+      <div className={`${cartaoCls} space-y-3`}>
+        <p className={tituloCls}>
+          <UserCheck className="w-5 h-5 text-[#DE6464]" /> Responsável
+        </p>
+        {isAdmin ? (
+          <select
+            value={item.responsavel || ''}
+            onChange={(e) => trocarResponsavel(e.target.value)}
+            disabled={salvandoResp}
+            className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5E7EB] text-base text-[#030507] bg-white outline-none focus:border-[#DE6464]"
+          >
+            <option value="">Sem responsável</option>
+            {usuarios.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name || u.email}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <p className="text-lg font-semibold text-[#030507]">
+            {nomeResponsavel || 'Sem responsável'}
+          </p>
+        )}
+        <p className="text-sm text-[#6B7280]">
+          {isAdmin
+            ? 'Herdado do responsável do lead. Só o administrador pode trocar.'
+            : 'Herdado do responsável do lead. Para trocar, fale com o administrador.'}
+        </p>
+      </div>
+
       {/* Lead e contato */}
       <div className={`${cartaoCls} space-y-3`}>
         <p className={tituloCls}>

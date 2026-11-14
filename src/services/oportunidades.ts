@@ -25,7 +25,7 @@ export interface OportunidadesContadores {
   emRevisao: number
 }
 
-const EXPAND = 'lead,produto,decidido_por,etapa_atual'
+const EXPAND = 'lead,produto,decidido_por,etapa_atual,responsavel,motivo_perda'
 
 // F1-T14: o comentario acumula o histórico — cada decisão acrescenta uma linha
 const acumularComentario = (anterior: string | undefined, linha: string) => {
@@ -153,20 +153,32 @@ export const oportunidadesService = {
     }
   },
 
-  // F2-T06: fechamento ganho/perda (o servidor exige motivo + ambiente + valor)
+  // F2-T06: fechamento ganho/perda (o servidor exige motivo + ambiente + valor).
+  // Bloco C: na perda, o motivo vem da lista (motivoPerdaId) e o texto é a observação.
   async registrarResultado(
     id: string,
     resultado: 'ganha' | 'perdida',
     motivo: string,
     concorrente?: string,
+    motivoPerdaId?: string,
   ): Promise<OportunidadeRecord> {
+    return await pb.collection('oportunidades').update<OportunidadeRecord>(
+      id,
+      {
+        resultado,
+        resultado_motivo: motivo.trim(),
+        concorrente: (concorrente || '').trim(),
+        motivo_perda: resultado === 'perdida' ? motivoPerdaId || '' : '',
+      },
+      { expand: EXPAND },
+    )
+  },
+
+  // Bloco C: troca de responsável (o servidor só aceita de administrador)
+  async alterarResponsavel(id: string, responsavel: string): Promise<OportunidadeRecord> {
     return await pb
       .collection('oportunidades')
-      .update<OportunidadeRecord>(
-        id,
-        { resultado, resultado_motivo: motivo.trim(), concorrente: (concorrente || '').trim() },
-        { expand: EXPAND },
-      )
+      .update<OportunidadeRecord>(id, { responsavel }, { expand: EXPAND })
   },
 
   async reabrir(id: string, justificativa: string): Promise<OportunidadeRecord> {

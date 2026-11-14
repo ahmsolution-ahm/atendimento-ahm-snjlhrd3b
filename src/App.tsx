@@ -16,7 +16,9 @@ const VerifyEmail = lazy(() => import('@/pages/VerifyEmail'))
 const ConfirmEmailChange = lazy(() => import('@/pages/ConfirmEmailChange'))
 const NotFound = lazy(() => import('@/pages/NotFound'))
 
-const Dashboard = lazy(() => import('@/pages/Dashboard'))
+// Bloco C: a tela inicial passou a ser a "Minha mesa" (o antigo painel de tickets saiu)
+const MinhaMesa = lazy(() => import('@/pages/MinhaMesa'))
+const Desempenho = lazy(() => import('@/pages/Desempenho'))
 const Tickets = lazy(() => import('@/pages/Tickets'))
 const Atendimentos = lazy(() => import('@/pages/Atendimentos'))
 const Equipe = lazy(() => import('@/pages/Equipe'))
@@ -66,7 +68,8 @@ const App = () => (
                 </ProtectedRoute>
               }
             >
-              <Route path="/" element={<Dashboard />} />
+              <Route path="/" element={<MinhaMesa />} />
+              <Route path="/desempenho" element={<Desempenho />} />
               <Route path="/tickets" element={<Tickets />} />
               <Route path="/atendimentos" element={<Atendimentos />} />
               <Route

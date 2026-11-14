@@ -182,11 +182,16 @@ export interface OportunidadeRecord extends RecordModel {
   fechado_em?: string
   fechado_por?: string
   reabertura_motivo?: string
+  // Bloco C: dono da oportunidade e motivo de perda da lista fixa
+  responsavel?: string
+  motivo_perda?: string
   expand?: {
     lead?: LeadRecord
     produto?: ProdutoRecord
     decidido_por?: UserRecord
     etapa_atual?: PipelineEtapaRecord
+    responsavel?: UserRecord
+    motivo_perda?: { id: string; nome: string; exige_detalhe?: boolean }
   }
 }
 

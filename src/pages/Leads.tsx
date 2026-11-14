@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { leadsService } from '@/services/leads'
 import { produtosService } from '@/services/produtos'
 import { useAuth } from '@/contexts/AuthContext'
+import { useSearchParams } from 'react-router-dom'
 import type { LeadRecord, LeadStatus, LeadUrgencia, ProdutoRecord } from '@/types'
 import type { CsvLeadRow, LinhaInvalida, PreviaImportacao } from '@/lib/csvImport'
 import {
@@ -88,6 +89,16 @@ export default function Leads() {
 
   // Modal Novo Lead
   const [isNewModalOpen, setIsNewModalOpen] = useState(false)
+  // Bloco C: o botão "Novo lead" do menu abre esta tela já com o cadastro aberto (?novo=1)
+  const [searchParams, setSearchParams] = useSearchParams()
+  useEffect(() => {
+    if (searchParams.get('novo') === '1') {
+      setIsNewModalOpen(true)
+      const prox = new URLSearchParams(searchParams)
+      prox.delete('novo')
+      setSearchParams(prox, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // F1-T06 RN-1.5: duplicidade local — aviso antes de confirmar
