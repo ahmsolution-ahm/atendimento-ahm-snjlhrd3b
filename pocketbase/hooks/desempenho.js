@@ -97,7 +97,8 @@ routerAdd(
 
     // etapas do pipeline
     const etapasLinhas = consultar(
-      'SELECT id, trilha, ordem, nome, fase FROM pipeline_etapas ORDER BY trilha, ordem',
+      "SELECT id, COALESCE(trilha, '') AS trilha, COALESCE(ordem, 0) AS ordem, COALESCE(nome, '') AS nome, " +
+        "COALESCE(fase, '') AS fase FROM pipeline_etapas ORDER BY trilha, ordem",
       { id: '', trilha: '', ordem: 0, nome: '', fase: '' },
     )
     const etapaPorId = {}
@@ -320,7 +321,10 @@ routerAdd(
       a.trilha === b.trilha ? a.ordem - b.ordem : a.trilha < b.trilha ? -1 : 1,
     )
 
-    const motivosLinhas = consultar('SELECT id, nome FROM motivos_perda', { id: '', nome: '' })
+    const motivosLinhas = consultar("SELECT id, COALESCE(nome, '') AS nome FROM motivos_perda", {
+      id: '',
+      nome: '',
+    })
     const nomeMotivo = {}
     for (let i = 0; i < motivosLinhas.length; i++)
       nomeMotivo[motivosLinhas[i].id] = motivosLinhas[i].nome
@@ -347,7 +351,7 @@ routerAdd(
     // ---- duração
     const duracaoLinhas = consultar(
       'SELECT o.resultado AS resultado, COUNT(*) AS n, ' +
-        'CAST(ROUND(AVG(julianday(o.fechado_em) - julianday(o.created)) * 10) AS INTEGER) AS d ' +
+        'CAST(ROUND(COALESCE(AVG(julianday(o.fechado_em) - julianday(o.created)), 0) * 10) AS INTEGER) AS d ' +
         'FROM oportunidades o WHERE ' +
         base +
         " AND o.resultado IN ('ganha', 'perdida')" +
@@ -367,8 +371,8 @@ routerAdd(
       }
     }
     const tempoEtapaLinhas = consultar(
-      'SELECT h.etapa AS chave, COUNT(*) AS n, ' +
-        'CAST(ROUND(AVG(julianday(h.saiu_em) - julianday(h.entrou_em)) * 10) AS INTEGER) AS d ' +
+      "SELECT COALESCE(h.etapa, '') AS chave, COUNT(*) AS n, " +
+        'CAST(ROUND(COALESCE(AVG(julianday(h.saiu_em) - julianday(h.entrou_em)), 0) * 10) AS INTEGER) AS d ' +
         'FROM oportunidade_etapas h JOIN oportunidades o ON o.id = h.oportunidade WHERE ' +
         base +
         " AND COALESCE(h.saiu_em, '') != ''" +

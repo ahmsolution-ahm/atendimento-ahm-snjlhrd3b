@@ -135,7 +135,8 @@ export default function MinhaMesa() {
       mesaService.oportunidadesAbertas(alvo),
       mesaService.leadsParaTrabalhar(alvo),
       mesaService.transbordosAbertos(alvo),
-      desempenhoService.carregar('mes', 'todas', isAdmin ? 'todos' : user.id),
+      // o resumo do mês não pode derrubar a mesa inteira
+      desempenhoService.carregar('mes', 'todas', isAdmin ? 'todos' : user.id).catch(() => null),
       oportunidadesService.etapas().catch(() => [] as PipelineEtapaRecord[]),
     ])
       .then(([o, l, t, d, e]) => {
