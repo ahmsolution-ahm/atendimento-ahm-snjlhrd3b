@@ -31,6 +31,8 @@ onRecordDeleteRequest(
   'atendimentos',
   'comentarios',
   'logs_tickets',
+  'motivos_perda',
+  'configuracoes',
 )
 
 // 2) Catálogo de produtos e configuração do pipeline: criar/editar só administrador.
@@ -53,6 +55,8 @@ onRecordCreateRequest(
   'templates_diagnostico',
   'pipeline_etapas',
   'etapa_checklist_itens',
+  'motivos_perda',
+  'configuracoes',
 )
 
 onRecordUpdateRequest(
@@ -74,6 +78,8 @@ onRecordUpdateRequest(
   'templates_diagnostico',
   'pipeline_etapas',
   'etapa_checklist_itens',
+  'motivos_perda',
+  'configuracoes',
 )
 
 // 3) Demonstração do painel: só administrador carrega (a remoção já exige administrador pela

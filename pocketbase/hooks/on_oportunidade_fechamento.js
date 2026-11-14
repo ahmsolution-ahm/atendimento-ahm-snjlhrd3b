@@ -20,10 +20,31 @@ onRecordUpdate((e) => {
           'Esta oportunidade já está fechada. Reabra-a antes de registrar outro resultado.',
         )
       }
-      if (r.getString('resultado_motivo').trim() === '') {
-        throw new BadRequestError(
-          res === 'ganha' ? 'Informe o motivo do ganho.' : 'Informe o motivo da perda.',
-        )
+      // Bloco C: ganho exige motivo em texto; perda exige o motivo da LISTA (motivos_perda,
+      // ativo) — o texto vira observação, obrigatória só quando o motivo exige detalhe.
+      if (res === 'ganha') {
+        if (r.getString('resultado_motivo').trim() === '') {
+          throw new BadRequestError('Informe o motivo do ganho.')
+        }
+      } else {
+        const motivoId = r.getString('motivo_perda')
+        if (motivoId === '') {
+          throw new BadRequestError('Escolha o motivo da perda na lista.')
+        }
+        let motivo = null
+        try {
+          motivo = $app.findRecordById('motivos_perda', motivoId)
+        } catch (_) {
+          motivo = null
+        }
+        if (!motivo || !motivo.getBool('ativo')) {
+          throw new BadRequestError(
+            'O motivo de perda escolhido não está disponível. Escolha outro da lista.',
+          )
+        }
+        if (motivo.getBool('exige_detalhe') && r.getString('resultado_motivo').trim() === '') {
+          throw new BadRequestError('Para este motivo de perda, descreva o detalhe na observação.')
+        }
       }
       const faltando = []
       if (r.getString('ambiente_fechamento') === '') faltando.push('o ambiente de fechamento')
@@ -41,6 +62,7 @@ onRecordUpdate((e) => {
         throw new BadRequestError('Para reabrir a oportunidade, informe a justificativa.')
       }
       r.set('resultado_motivo', '')
+      r.set('motivo_perda', '')
       r.set('concorrente', '')
       r.set('fechado_em', '')
       r.set('fechado_por', '')
@@ -74,7 +96,19 @@ onRecordAfterUpdateSuccess((e) => {
       if (res !== '') {
         log.set('acao', 'fechamento')
         log.set('resultado', res)
-        log.set('motivo', r.getString('resultado_motivo'))
+        let texto = r.getString('resultado_motivo').trim()
+        const motivoId = r.getString('motivo_perda')
+        if (res === 'perdida' && motivoId !== '') {
+          let nome = ''
+          try {
+            nome = $app.findRecordById('motivos_perda', motivoId).getString('nome')
+          } catch (_) {
+            nome = ''
+          }
+          texto = nome ? (texto ? nome + ' — ' + texto : nome) : texto
+          log.set('motivo_perda', motivoId)
+        }
+        log.set('motivo', texto || 'Sem observação')
         log.set('concorrente', r.getString('concorrente'))
       } else {
         log.set('acao', 'reabertura')
