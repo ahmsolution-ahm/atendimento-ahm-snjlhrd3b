@@ -14,6 +14,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { mesaService, type ListaCurta } from '@/services/mesa'
 import { desempenhoService, type DadosDesempenho } from '@/services/desempenho'
 import { oportunidadesService } from '@/services/oportunidades'
+import { iaService } from '@/services/ia'
 import {
   etapaVizinha,
   etapasDaTrilha,
@@ -127,6 +128,12 @@ export default function MinhaMesa() {
   const [mes, setMes] = useState<DadosDesempenho | null>(null)
   const [etapas, setEtapas] = useState<PipelineEtapaRecord[]>([])
   const [erro, setErro] = useState(false)
+  // IA de vendas (F0): rascunhos aguardando a aprovação do administrador
+  const [rascunhosIa, setRascunhosIa] = useState(0)
+  useEffect(() => {
+    if (!isAdmin) return
+    iaService.rascunhosPendentes().then(setRascunhosIa)
+  }, [isAdmin])
 
   useEffect(() => {
     if (!user?.id) return
@@ -201,6 +208,18 @@ export default function MinhaMesa() {
           <UserPlus className="w-5 h-5" /> Novo lead
         </Link>
       </div>
+
+      {isAdmin && rascunhosIa > 0 && (
+        <Link
+          to="/ia"
+          className="block rounded-2xl border-2 border-[#DE6464]/40 bg-[#DE6464]/[0.06] px-5 py-4 text-base font-semibold text-[#030507] hover:border-[#DE6464]"
+        >
+          {rascunhosIa === 1
+            ? '1 e-mail da IA aguarda a sua aprovação.'
+            : `${rascunhosIa} e-mails da IA aguardam a sua aprovação.`}{' '}
+          <span className="text-[#DE6464]">Revisar agora →</span>
+        </Link>
+      )}
 
       {erro && (
         <p className="rounded-xl bg-red-50 border border-red-200 text-[#991B1B] px-4 py-3 text-base">

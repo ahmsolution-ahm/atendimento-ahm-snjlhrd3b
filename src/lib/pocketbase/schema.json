@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-14T09:53:47.326Z",
+  "generatedAt": "2026-11-14T12:24:04.209Z",
   "collections": [
     {
       "name": "users",
@@ -1994,10 +1994,375 @@
             "onCreate",
             "onUpdate"
           ]
+        },
+        {
+          "name": "valor_texto",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
         "CREATE UNIQUE INDEX idx_configuracoes_chave ON configuracoes (chave)"
+      ]
+    },
+    {
+      "name": "base_conhecimento",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.papel = 'admin'",
+        "view": "@request.auth.papel = 'admin'",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "produto",
+            "metodologia",
+            "caso",
+            "pergunta_frequente",
+            "material",
+            "especialista"
+          ]
+        },
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "conteudo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "produto",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "produtos"
+        },
+        {
+          "name": "familia",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fonte",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "criado_por",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_base_conhecimento_tipo ON base_conhecimento (tipo, ativo)"
+      ]
+    },
+    {
+      "name": "regras_roteamento",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "modelo_negocio",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "modelos_negocio"
+        },
+        {
+          "name": "vendedor",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "vendedor_previsto",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "aguardando_cadastro",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_regras_roteamento_modelo ON regras_roteamento (modelo_negocio)"
+      ]
+    },
+    {
+      "name": "janelas_executivo",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "vendedor",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "dia_semana",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "inicio",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "fim",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_janelas_vendedor ON janelas_executivo (vendedor, dia_semana)"
+      ]
+    },
+    {
+      "name": "ia_envios",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.papel = 'admin'",
+        "view": "@request.auth.papel = 'admin'",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "lead",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "leads"
+        },
+        {
+          "name": "oportunidade",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "oportunidades"
+        },
+        {
+          "name": "gatilho",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "canal",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "email"
+          ]
+        },
+        {
+          "name": "destinatario",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "assunto",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "rascunho",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "versao_enviada",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "rascunho",
+            "aprovado",
+            "enviado",
+            "falha",
+            "descartado",
+            "conflito"
+          ]
+        },
+        {
+          "name": "modo",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "rascunho",
+            "automatica",
+            "manual"
+          ]
+        },
+        {
+          "name": "autorizado_por",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "erro",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "criado_em",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "atualizado_em",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_ia_envios_status ON ia_envios (status)",
+        "CREATE INDEX idx_ia_envios_lead ON ia_envios (lead)"
       ]
     }
   ]

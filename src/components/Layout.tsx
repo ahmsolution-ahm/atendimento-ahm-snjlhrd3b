@@ -11,6 +11,7 @@ import {
   Target,
   BarChart3,
   TrendingUp,
+  Sparkles,
   LogOut,
   Menu,
   X,
@@ -61,6 +62,10 @@ export default function Layout() {
         return 'Métricas'
       case '/desempenho':
         return 'Desempenho'
+      case '/ia':
+        return 'IA de vendas'
+      case '/importar-pipedrive':
+        return 'Importar do Pipedrive'
       default:
         return 'AHM Solution'
     }
@@ -74,8 +79,13 @@ export default function Layout() {
     { name: 'Métricas', path: '/metricas', icon: BarChart3 },
     { name: 'Desempenho', path: '/desempenho', icon: TrendingUp },
     { name: 'Produtos', path: '/produtos', icon: Package },
-    // Bloco 3: gestão de usuários só para administrador
-    ...(isAdmin ? [{ name: 'Equipe', path: '/equipe', icon: Users }] : []),
+    // Bloco 3: gestão de usuários só para administrador; IA de vendas (F0) também
+    ...(isAdmin
+      ? [
+          { name: 'IA de vendas', path: '/ia', icon: Sparkles },
+          { name: 'Equipe', path: '/equipe', icon: Users },
+        ]
+      : []),
   ]
 
   const ativo = (path: string) =>

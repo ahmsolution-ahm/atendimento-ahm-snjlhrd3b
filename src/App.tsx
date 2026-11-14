@@ -20,6 +20,7 @@ const NotFound = lazy(() => import('@/pages/NotFound'))
 const MinhaMesa = lazy(() => import('@/pages/MinhaMesa'))
 const Desempenho = lazy(() => import('@/pages/Desempenho'))
 const ImportarPipedrive = lazy(() => import('@/pages/ImportarPipedrive'))
+const IaVendas = lazy(() => import('@/pages/IaVendas'))
 const Tickets = lazy(() => import('@/pages/Tickets'))
 const Atendimentos = lazy(() => import('@/pages/Atendimentos'))
 const Equipe = lazy(() => import('@/pages/Equipe'))
@@ -71,6 +72,14 @@ const App = () => (
             >
               <Route path="/" element={<MinhaMesa />} />
               <Route path="/desempenho" element={<Desempenho />} />
+              <Route
+                path="/ia"
+                element={
+                  <SomenteAdmin>
+                    <IaVendas />
+                  </SomenteAdmin>
+                }
+              />
               <Route
                 path="/importar-pipedrive"
                 element={
