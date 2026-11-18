@@ -66,6 +66,30 @@ export interface LogTicketRecord extends RecordModel {
   }
 }
 
+// Fase 2 — catálogos de apoio ao diagnóstico (coleções `templates_diagnostico` e `modelos_negocio`)
+export interface TemplateDiagnosticoRecord extends RecordModel {
+  familia: string
+  tipo: 'tecnico' | 'cenario' | 'auditoria' | 'checklist_triagem' | 'qualificacao_consultiva'
+  titulo: string
+  produtos_cobertos: string
+  perguntas_json: string
+  blocos_comuns?: string
+  fonte: string
+  ativo?: boolean
+}
+
+export interface ModeloNegocioRecord extends RecordModel {
+  nome: string
+  descricao: string
+  ciclo_dias_min: number
+  ciclo_dias_max: number
+  condicoes_pagamento: string
+  canal: string
+  fornecedores?: string
+  previsibilidade?: boolean
+  complexidade_tipica: ProdutoComplexidade
+}
+
 export interface ProdutoRecord extends RecordModel {
   nome: string
   familia?: string
@@ -201,6 +225,7 @@ export interface InteracaoRecord extends RecordModel {
   lead: string
   tipo: InteracaoTipo
   data: string
+  created: string
   responsavel?: string
   observacao?: string
   proposta?: boolean
